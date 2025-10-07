@@ -3,53 +3,42 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Parkinson BLE Monitor</title>
-<!-- <base href="/Parkinson/">  ← odkomentuj jeśli używasz Project Pages -->
+<title>Parkinson Monitor — BLE / Serial</title>
+<!-- <base href="/Parkinson/">  ← odkomentuj przy Project Pages -->
 <link rel="icon" href="data:,">
 <style>
-:root{
-  --bg: #0b1020; --card:#11182b; --muted:#6b7a99; --text:#e8eefc; --acc:#4da3ff; --acc2:#7cf; --ok:#1ec28b; --warn:#ffb020; --err:#ff5d5d;
-  --br: 14px; --shadow: 0 10px 30px rgba(0,0,0,.35);
-}
-@media (prefers-color-scheme: light){
-  :root{ --bg:#f7f9ff; --card:#ffffff; --muted:#60708f; --text:#0a1630; --acc:#2a77ff; --acc2:#3aa9ff; --ok:#0ea77a; --warn:#c77a00; --err:#d43a3a; }
-}
-*{box-sizing:border-box}
-body{margin:0;background:linear-gradient(180deg,var(--bg),#070b17);color:var(--text);font:500 15px/1.5 ui-sans-serif,system-ui,Segoe UI,Arial}
+:root{--bg:#0b1020;--card:#11182b;--muted:#6b7a99;--text:#e8eefc;--acc:#4da3ff;--acc2:#7cf;--ok:#1ec28b;--warn:#ffb020;--err:#ff5d5d;--br:14px;--shadow:0 10px 30px rgba(0,0,0,.35)}
+@media (prefers-color-scheme: light){:root{--bg:#f7f9ff;--card:#fff;--muted:#60708f;--text:#0a1630;--acc:#2a77ff;--acc2:#3aa9ff;--ok:#0ea77a;--warn:#c77a00;--err:#d43a3a}}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,var(--bg),#070b17);color:var(--text);font:500 15px/1.5 ui-sans-serif,system-ui,Segoe UI,Arial}
 .container{max-width:1200px;margin:32px auto;padding:0 16px}
 .header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
 .brand{display:flex;gap:12px;align-items:center}
-.logo{width:40px;height:40px;border-radius:12px;background:radial-gradient(120% 120% at 0% 0%, var(--acc) 0%, var(--acc2) 60%, transparent 61%),linear-gradient(180deg, var(--card), #0b1530); box-shadow:var(--shadow)}
+.logo{width:40px;height:40px;border-radius:12px;background:radial-gradient(120% 120% at 0% 0%, var(--acc) 0%, var(--acc2) 60%, transparent 61%),linear-gradient(180deg,var(--card),#0b1530);box-shadow:var(--shadow)}
 .title{font-weight:800;letter-spacing:.2px}
 .pill{padding:4px 10px;border-radius:999px;background:#0f1a33;color:var(--muted);display:flex;gap:8px;align-items:center}
 .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
 .row{display:grid;gap:16px}
-@media(min-width:1024px){ .row{grid-template-columns: 1.35fr 1fr} }
+@media (min-width:1024px){.row{grid-template-columns:1.35fr 1fr}}
 .card{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.00));border:1px solid rgba(255,255,255,.08);border-radius:var(--br);box-shadow:var(--shadow)}
 .card .head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
 .card .body{padding:16px}
 .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-button, input, select, textarea{font:inherit;color:var(--text)}
+button,input,select,textarea{font:inherit;color:var(--text)}
 button{background:linear-gradient(180deg,var(--acc),var(--acc2));border:none;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
 button.secondary{background:#0f1a33;border:1px solid rgba(255,255,255,.08);font-weight:600}
 button.ghost{background:transparent;border:1px dashed rgba(255,255,255,.18)}
 button:disabled{opacity:.6;cursor:not-allowed}
-input[type="number"], input[type="text"], select{
-  background:#0f1a33;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 10px;min-width:80px
-}
+input[type="number"],input[type="text"],select{background:#0f1a33;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 10px;min-width:80px}
 label{display:flex;gap:6px;align-items:center;color:var(--muted)}
 .badge{padding:3px 8px;border-radius:999px;background:#0f1a33;color:var(--muted);font-weight:700}
 canvas{width:100%;height:340px;display:block}
 .kpi{display:flex;gap:14px;flex-wrap:wrap}
 .kpi .item{background:#0f1a33;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;min-width:180px}
 .kpi .item .v{font-variant-numeric:tabular-nums;font-weight:800;font-size:18px}
-.terminal{font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0b1328;border-radius:12px;border:1px solid rgba(255,255,255,.08);min-height:180px;max-height:240px;overflow:auto;padding:10px;white-space:pre-wrap}
-.terminal .rx{color:#a7ffb5}
-.terminal .tx{color:#a6c8ff}
-.inline{display:flex;gap:10px;align-items:center}
-.inline input[type="text"]{flex:1}
-.switch{display:flex;gap:10px;align-items:center}
-.switch input{accent-color:var(--acc)}
+.terminal{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0b1328;border-radius:12px;border:1px solid rgba(255,255,255,.08);min-height:180px;max-height:240px;overflow:auto;padding:10px;white-space:pre-wrap}
+.terminal .rx{color:#a7ffb5}.terminal .tx{color:#a6c8ff}
+.inline{display:flex;gap:10px;align-items:center}.inline input[type="text"]{flex:1}
+.switch{display:flex;gap:10px;align-items:center}.switch input{accent-color:var(--acc)}
 .footer{margin:16px 0;color:var(--muted);font-size:13px}
 .toast{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:10px;z-index:99}
 .toast .t{background:#0f1a33;border:1px solid rgba(255,255,255,.18);border-left:4px solid var(--err);color:#fff;padding:10px 12px;border-radius:10px;box-shadow:var(--shadow)}
@@ -62,20 +51,18 @@ hr.sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
     <div class="brand">
       <div class="logo"></div>
       <div>
-        <div class="title">Parkinson BLE Monitor</div>
-        <div class="footer">Web Bluetooth • Chrome Desktop/Android • NUS (BLE UART)</div>
+        <div class="title">Parkinson Monitor — BLE / Serial</div>
+        <div class="footer">BLE (NUS) • Web Serial (HC-05 via COM) • Chrome</div>
       </div>
     </div>
-    <div class="pill" id="pill">
-      <div class="dot" id="dot"></div>
-      <span id="status">Rozłączony</span>
-    </div>
+    <div class="pill"><div class="dot" id="dot"></div><span id="status">Rozłączony</span></div>
   </div>
 
   <div class="card">
     <div class="head">
       <div class="controls">
-        <button id="btnConnect">Połącz</button>
+        <!-- BLE -->
+        <button id="btnConnect">Połącz BLE</button>
         <button id="btnDisconnect" class="secondary" disabled>Rozłącz</button>
         <label>Tryb
           <select id="mode">
@@ -83,6 +70,10 @@ hr.sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
             <option value="lines">Linie tekstowe</option>
           </select>
         </label>
+        <!-- Serial -->
+        <button id="btnSerial" class="secondary">Połącz Serial</button>
+        <label>baud <input id="baud" type="number" value="115200" min="1200" max="921600" step="1200"></label>
+
         <label>fs [Hz] <input id="fs" type="number" value="200" min="50" max="2000" step="10"></label>
         <label>Okno PSD [s] <input id="win" type="number" value="8" min="2" max="30" step="1"></label>
         <span class="badge" id="devName">—</span>
@@ -92,6 +83,7 @@ hr.sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
         <button id="btnClear" class="ghost">Czyść</button>
       </div>
     </div>
+
     <div class="body">
       <div class="kpi">
         <div class="item">Tremor peak 3–8 Hz<br><span class="v"><span id="peak">–</span> Hz</span></div>
@@ -101,14 +93,8 @@ hr.sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
       </div>
       <hr class="sep">
       <div class="row">
-        <div class="card">
-          <div class="head"><b>Sygnał w czasie</b></div>
-          <div class="body"><canvas id="chartTime"></canvas></div>
-        </div>
-        <div class="card">
-          <div class="head"><b>Widmo / PSD</b></div>
-          <div class="body"><canvas id="chartPsd"></canvas></div>
-        </div>
+        <div class="card"><div class="head"><b>Sygnał w czasie</b></div><div class="body"><canvas id="chartTime"></canvas></div></div>
+        <div class="card"><div class="head"><b>Widmo / PSD</b></div><div class="body"><canvas id="chartPsd"></canvas></div></div>
       </div>
 
       <hr class="sep">
@@ -136,7 +122,7 @@ hr.sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
         </div>
       </div>
 
-      <div class="footer">UUID serwisu: <code>6e400001-…-e50e24dcca9e</code> • RX notify: <code>6e400003-…</code> • TX write: <code>6e400002-…</code></div>
+      <div class="footer">BLE UUID: svc <code>6e400001-…</code> • rx notify <code>6e400003-…</code> • tx write <code>6e400002-…</code></div>
     </div>
   </div>
 </div>
@@ -146,24 +132,26 @@ hr.sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fft.js@4.0.4/dist/fft.min.js"></script>
 <script>
-/* --- Konfiguracja BLE (Nordic UART Service) --- */
+/* --- BLE NUS --- */
 const UUID_SVC='6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const UUID_RX ='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 const UUID_TX ='6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 
-/* --- Elementy UI --- */
-const $ = id => document.getElementById(id);
-const statusEl = $('status'), dotEl=$('dot'), nameEl=$('devName'), toastEl=$('toast');
+/* --- UI --- */
+const $=id=>document.getElementById(id);
+const statusEl=$('status'), dotEl=$('dot'), nameEl=$('devName'), toastEl=$('toast');
 const rowsEl=$('rows'), tlogEl=$('tlog'), termEl=$('term'), peakEl=$('peak'), pwrEl=$('pwr');
 const btnConn=$('btnConnect'), btnDis=$('btnDisconnect'), btnClear=$('btnClear');
 const btnSend=$('btnSend'), btnSendLn=$('btnSendLn'), cmdEl=$('cmd');
 const btnStart=$('btnStartLog'), btnStop=$('btnStopLog'), btnDl=$('btnDownload');
 const fsEl=$('fs'), winEl=$('win'), pauseEl=$('pause'), modeEl=$('mode');
+const btnSerial=$('btnSerial'), baudEl=$('baud');
 
-/* --- Stan BLE --- */
-let device=null, server=null, chrRX=null, chrTX=null;
+/* --- Stan połączeń --- */
+let device=null, server=null, chrRX=null, chrTX=null;      // BLE
+let serialPort=null, serialReader=null, serialWriter=null; // Serial
 
-/* --- Parametry przetwarzania --- */
+/* --- DSP parametry --- */
 let fs=+fsEl.value, winSec=+winEl.value;
 fsEl.onchange=()=>{ fs=+fsEl.value; resetProcessing(); };
 winEl.onchange=()=>{ winSec=+winEl.value; resetProcessing(); };
@@ -175,13 +163,13 @@ function hpf(x){ const a=Math.exp(-2*Math.PI*0.5/fs); hpf.z=(hpf.z??x)+(1-a)*(x-
 function resetProcessing(){ resetBuffers(); hpf.z=undefined; sampleIndex=0; }
 
 /* --- Wykresy --- */
-const timeChart=new Chart($('chartTime'),{
-  type:'line',data:{labels:new Array(600).fill(''),datasets:[{data:new Array(600).fill(null)}]},
+const timeChart=new Chart($('chartTime'),{type:'line',
+  data:{labels:new Array(600).fill(''),datasets:[{data:new Array(600).fill(null)}]},
   options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
     plugins:{legend:{display:false}},scales:{x:{display:false},y:{title:{display:true,text:'Amplituda'}}}}
 });
-const psdChart=new Chart($('chartPsd'),{
-  type:'line',data:{labels:[],datasets:[{data:[]}]},
+const psdChart=new Chart($('chartPsd'),{type:'line',
+  data:{labels:[],datasets:[{data:[]}]},
   options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
     plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Hz'}},y:{title:{display:true,text:'dB'}}}}
 });
@@ -191,25 +179,12 @@ let logging=false, csv=[], sampleIndex=0, t0=null;
 function csvHeader(){ return 't_sec,sample\n'; }
 function startLog(){ csv=[csvHeader().trimEnd()]; logging=true; sampleIndex=0; t0=performance.now(); btnStart.disabled=true; btnStop.disabled=false; btnDl.disabled=true; }
 function stopLog(){ logging=false; btnStart.disabled=false; btnStop.disabled=true; btnDl.disabled=false; }
-function logSample(y){
-  if(!logging) return;
-  const t=((performance.now()-t0)/1000).toFixed(6);
-  csv.push(`${t},${y}`);
-  rowsEl.textContent = csv.length-1;
-  tlogEl.textContent = t+' s';
-}
+function logSample(y){ if(!logging) return; const t=((performance.now()-t0)/1000).toFixed(6); csv.push(`${t},${y}`); rowsEl.textContent=csv.length-1; tlogEl.textContent=t+' s'; }
 
-/* --- Terminal --- */
+/* --- Terminal + toasty + status --- */
 function termRX(text){ const d=document.createElement('div'); d.className='rx'; d.textContent='<< '+text; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
 function termTX(text){ const d=document.createElement('div'); d.className='tx'; d.textContent='>> '+text; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
-
-/* --- Toast --- */
-function toast(msg,kind='err',ms=3500){
-  const t=document.createElement('div'); t.className='t'; t.style.borderLeftColor= kind==='ok'? 'var(--ok)': kind==='warn'? 'var(--warn)':'var(--err)';
-  t.textContent=msg; toastEl.appendChild(t); setTimeout(()=>t.remove(), ms);
-}
-
-/* --- Status --- */
+function toast(msg,kind='err',ms=3500){ const t=document.createElement('div'); t.className='t'; t.style.borderLeftColor=kind==='ok'?'var(--ok)':kind==='warn'?'var(--warn)':'var(--err)'; t.textContent=msg; toastEl.appendChild(t); setTimeout(()=>t.remove(),ms); }
 function setStatus(txt,color){ statusEl.textContent=txt; dotEl.style.background=color; }
 
 /* --- Analiza PSD --- */
@@ -221,99 +196,103 @@ function analyzePSD(){
   const f=new FFT(N); f.transform(re,im,re,im);
   const mags=[],freqs=[],norm=1/(N*N),N2=Math.floor(N/2);
   for(let k=1;k<=N2;k++){ const p=(re[k]*re[k]+im[k]*im[k])*norm; const hz=k*fs/N; freqs.push(hz); mags.push(10*Math.log10(p+1e-12)); }
-  // pik 3–8 Hz
   let peakHz=NaN, peakDb=-1e9;
-  for(let i=0;i<mags.length;i++){ if(freqs[i]>=3 && freqs[i]<=8 && mags[i]>peakDb){ peakDb=mags[i]; peakHz=freqs[i]; } }
-  peakEl.textContent = isFinite(peakHz)? peakHz.toFixed(2) : '–';
-  pwrEl.textContent  = isFinite(peakDb)? peakDb.toFixed(1) : '–';
-  if(!pauseEl.checked){
-    psdChart.data.labels=freqs; psdChart.data.datasets[0].data=mags; psdChart.update('none');
-  }
+  for(let i=0;i<mags.length;i++){ if(freqs[i]>=3&&freqs[i]<=8&&mags[i]>peakDb){ peakDb=mags[i]; peakHz=freqs[i]; } }
+  peakEl.textContent=isFinite(peakHz)?peakHz.toFixed(2):'–';
+  pwrEl.textContent=isFinite(peakDb)?peakDb.toFixed(1):'–';
+  if(!pauseEl.checked){ psdChart.data.labels=freqs; psdChart.data.datasets[0].data=mags; psdChart.update('none'); }
 }
 
-/* --- Strumień --- */
+/* --- Wejście próbek --- */
 function pushSample(x){
   const y=hpf(x);
-  ring[head]=y; head=(head+1)&(ring.length-1); filled=Math.min(filled+1, ring.length);
+  ring[head]=y; head=(head+1)&(ring.length-1); filled=Math.min(filled+1,ring.length);
   logSample(y);
-  if(!pauseEl.checked){
-    const ds=timeChart.data.datasets[0].data; ds.push(y); if(ds.length>600) ds.shift(); timeChart.update('none');
-  }
+  if(!pauseEl.checked){ const ds=timeChart.data.datasets[0].data; ds.push(y); if(ds.length>600) ds.shift(); timeChart.update('none'); }
   if(filled===ring.length) analyzePSD();
 }
+
+/* --- BLE strumień --- */
 function onNotify(e){
   const dv=e.target.value;
-  if(modeEl.value==='int16'){
-    for(let i=0;i<dv.byteLength;i+=2){ pushSample(dv.getInt16(i,true)); }
-  }else{
-    const s=new TextDecoder().decode(dv); termRX(s);
-    for(const line of s.split('\n')){ const n=parseFloat(line.trim()); if(Number.isFinite(n)) pushSample(n); }
-  }
+  if(modeEl.value==='int16'){ for(let i=0;i<dv.byteLength;i+=2) pushSample(dv.getInt16(i,true)); }
+  else{ const s=new TextDecoder().decode(dv); termRX(s); for(const line of s.split('\n')){ const n=parseFloat(line.trim()); if(Number.isFinite(n)) pushSample(n); } }
 }
 
-/* --- Połączenie / rozłączenie --- */
-async function connect(){
+/* --- BLE połączenie --- */
+async function connectBLE(){
   try{
-    device = await navigator.bluetooth.requestDevice({ filters:[{ services:[UUID_SVC] }] });
-    nameEl.textContent = device.name || 'BLE device';
-    device.addEventListener('gattserverdisconnected', onDisconnected);
-    server = await device.gatt.connect();
-    const svc = await server.getPrimaryService(UUID_SVC);
-    chrRX = await svc.getCharacteristic(UUID_RX);
-    chrTX = await svc.getCharacteristic(UUID_TX).catch(()=>null);
-    await chrRX.startNotifications();
-    chrRX.addEventListener('characteristicvaluechanged', onNotify);
-    resetProcessing();
-    setStatus('Połączony', 'var(--ok)');
-    btnConn.disabled=true; btnDis.disabled=false;
-    toast('Połączono', 'ok', 2000);
-  }catch(err){
-    toast('Błąd połączenia: '+ (err?.message||err), 'err');
-  }
+    device=await navigator.bluetooth.requestDevice({filters:[{services:[UUID_SVC]}]});
+    nameEl.textContent=device.name||'BLE device';
+    device.addEventListener('gattserverdisconnected', onBLEDisconnected);
+    server=await device.gatt.connect();
+    const svc=await server.getPrimaryService(UUID_SVC);
+    chrRX=await svc.getCharacteristic(UUID_RX);
+    chrTX=await svc.getCharacteristic(UUID_TX).catch(()=>null);
+    await chrRX.startNotifications(); chrRX.addEventListener('characteristicvaluechanged', onNotify);
+    resetProcessing(); setStatus('Połączony (BLE)','var(--ok)'); btnConn.disabled=true; btnDis.disabled=false; toast('Połączono BLE','ok',2000);
+  }catch(err){ toast('Błąd BLE: '+(err?.message||err),'err'); }
 }
-function onDisconnected(){
-  setStatus('Rozłączony', 'var(--warn)');
-  btnConn.disabled=false; btnDis.disabled=true;
-  toast('Rozłączono', 'warn', 2500);
-}
-async function disconnect(){
-  try{
-    if(chrRX){ await chrRX.stopNotifications().catch(()=>{}); chrRX.removeEventListener('characteristicvaluechanged', onNotify); }
-    if(device?.gatt?.connected) device.gatt.disconnect();
-  }finally{
-    onDisconnected();
-  }
-}
+function onBLEDisconnected(){ setStatus('Rozłączony','var(--warn)'); btnConn.disabled=false; btnDis.disabled=true; toast('BLE rozłączone','warn',2500); }
+async function disconnectBLE(){ try{ if(chrRX){ await chrRX.stopNotifications().catch(()=>{}); chrRX.removeEventListener('characteristicvaluechanged', onNotify); } if(device?.gatt?.connected) device.gatt.disconnect(); } finally{ onBLEDisconnected(); } }
 
-/* --- Wysyłanie komend --- */
+/* --- Web Serial połączenie (HC-05 przez COM) --- */
+async function connectSerial(){
+  if(!('serial' in navigator)){ toast('Brak Web Serial w tej przeglądarce','err'); return; }
+  try{
+    serialPort=await navigator.serial.requestPort();
+    await serialPort.open({ baudRate:+baudEl.value });
+    // surowe bajty:
+    const reader=serialPort.readable.getReader();
+    setStatus('Połączony (Serial)','var(--ok)'); btnDis.disabled=false; toast('Serial połączony','ok',1800);
+    (async()=>{
+      let pending=new Uint8Array(0); // bufor do łączenia porcji
+      for(;;){
+        const {value,done}=await reader.read(); if(done) break;
+        if(!(value instanceof Uint8Array)) continue;
+        // 1) spróbuj binarne int16 LE
+        if(modeEl.value==='int16'){
+          const bytes= (pending.length? concatU8(pending,value): value); // sklej resztki
+          const evenLen=bytes.length & ~1;
+          const dv=new DataView(bytes.buffer, bytes.byteOffset, evenLen);
+          for(let i=0;i<dv.byteLength;i+=2) pushSample(dv.getInt16(i,true));
+          pending = bytes.slice(evenLen); // zachowaj ostatni nieparzysty bajt
+        }else{
+          // 2) linie tekstowe
+          const s = new TextDecoder().decode(value);
+          termRX(s);
+          const parts = s.split('\n');
+          for(const line of parts){ const n=parseFloat(line.trim()); if(Number.isFinite(n)) pushSample(n); }
+        }
+      }
+    })().catch(()=>{});
+    // writer
+    const encoder=new TextEncoderStream(); encoder.readable.pipeTo(serialPort.writable).catch(()=>{});
+    serialWriter=encoder.writable.getWriter();
+  }catch(err){ toast('Błąd Serial: '+(err?.message||err),'err'); }
+}
+function concatU8(a,b){ const o=new Uint8Array(a.length+b.length); o.set(a,0); o.set(b,a.length); return o; }
+async function disconnectSerial(){ try{ if(serialWriter){ try{await serialWriter.close();}catch{} serialWriter=null; } if(serialPort){ try{await serialPort.close();}catch{} serialPort=null; } }catch{} }
+
+/* --- Wysyłanie komend (BLE > Serial) --- */
 async function sendRaw(s){
-  if(!chrTX){ toast('Brak charakterystyki TX (write)', 'err'); return; }
   const data=new TextEncoder().encode(s);
-  try{ await chrTX.writeValue(data); termTX(s.replace(/\n/g,'⏎')); }
-  catch(err){ toast('Błąd wysyłania: '+(err?.message||err), 'err'); }
+  if(chrTX){ try{ await chrTX.writeValue(data); termTX(s.replace(/\n/g,'⏎')); return; }catch(e){ toast('BLE TX błąd','err'); } }
+  if(serialWriter){ try{ await serialWriter.write(s); termTX(s.replace(/\n/g,'⏎')); return; }catch(e){ toast('Serial TX błąd','err'); } }
+  toast('Brak kanału TX (BLE/Serial)','err');
 }
 
-/* --- UI events --- */
-btnConnect.onclick=connect;
-btnDisconnect.onclick=disconnect;
-btnClear.onclick=()=>{
-  timeChart.data.datasets[0].data.length=0; timeChart.update('none');
-  psdChart.data.labels=[]; psdChart.data.datasets[0].data=[]; psdChart.update('none');
-  termEl.textContent=''; rowsEl.textContent='0'; tlogEl.textContent='0.0 s';
-  resetProcessing();
-};
+/* --- UI zdarzenia --- */
+btnConnect.onclick=connectBLE;
+btnSerial.onclick=connectSerial;
+btnDisconnect.onclick=async()=>{ await disconnectBLE(); await disconnectSerial(); setStatus('Rozłączony','var(--warn)'); btnDis.disabled=true; };
+btnClear.onclick=()=>{ timeChart.data.datasets[0].data.length=0; timeChart.update('none'); psdChart.data.labels=[]; psdChart.data.datasets[0].data=[]; psdChart.update('none'); termEl.textContent=''; rowsEl.textContent='0'; tlogEl.textContent='0.0 s'; resetProcessing(); };
 btnSend.onclick = ()=> sendRaw(cmdEl.value);
 btnSendLn.onclick= ()=> sendRaw(cmdEl.value+'\n');
-cmdEl.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sendRaw(cmdEl.value+'\n'); } });
-
-btnStart.onclick = ()=>{ startLog(); toast('Logowanie rozpoczęte','ok',1800); };
-btnStop.onclick  = ()=>{ stopLog(); toast('Logowanie zatrzymane','warn',1800); };
-btnDownload.onclick=()=>{
-  const blob=new Blob([csv.join('\n')+'\n'],{type:'text/csv'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  const ts=new Date().toISOString().replace(/[:.]/g,'-'); a.download=`parkinson_log_${ts}.csv`;
-  a.click(); URL.revokeObjectURL(a.href);
-};
+cmdEl.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); sendRaw(cmdEl.value+'\n'); } });
+btnStart.onclick=()=>{ startLog(); toast('Logowanie rozpoczęte','ok',1800); };
+btnStop.onclick =()=>{ stopLog();  toast('Logowanie zatrzymane','warn',1800); };
+btnDownload.onclick=()=>{ const blob=new Blob([csv.join('\n')+'\n'],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); const ts=new Date().toISOString().replace(/[:.]/g,'-'); a.download=`parkinson_log_${ts}.csv`; a.click(); URL.revokeObjectURL(a.href); };
 
 /* --- Init --- */
 setStatus('Rozłączony','var(--warn)'); resetProcessing();
