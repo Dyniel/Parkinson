@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Parkinson Monitor — BLE / Serial</title>
-<!-- <base href="/Parkinson/">  ← odkomentuj przy Project Pages -->
+<!-- <base href="/Parkinson/"> -->
 <link rel="icon" href="data:,">
 <style>
 :root{--bg:#0b1020;--card:#11182b;--muted:#6b7a99;--text:#e8eefc;--acc:#4da3ff;--acc2:#7cf;--ok:#1ec28b;--warn:#ffb020;--err:#ff5d5d;--br:14px;--shadow:0 10px 30px rgba(0,0,0,.35)}
@@ -61,7 +61,6 @@ hr.sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
   <div class="card">
     <div class="head">
       <div class="controls">
-        <!-- BLE -->
         <button id="btnConnect">Połącz BLE</button>
         <button id="btnDisconnect" class="secondary" disabled>Rozłącz</button>
         <label>Tryb
@@ -70,10 +69,8 @@ hr.sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
             <option value="lines">Linie tekstowe</option>
           </select>
         </label>
-        <!-- Serial -->
         <button id="btnSerial" class="secondary">Połącz Serial</button>
         <label>baud <input id="baud" type="number" value="115200" min="1200" max="921600" step="1200"></label>
-
         <label>fs [Hz] <input id="fs" type="number" value="200" min="50" max="2000" step="10"></label>
         <label>Okno PSD [s] <input id="win" type="number" value="8" min="2" max="30" step="1"></label>
         <span class="badge" id="devName">—</span>
@@ -129,15 +126,13 @@ hr.sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fft.js@4.0.4/dist/fft.min.js"></script>
 <script>
-/* --- BLE NUS --- */
 const UUID_SVC='6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const UUID_RX ='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 const UUID_TX ='6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 
-/* --- UI --- */
 const $=id=>document.getElementById(id);
 const statusEl=$('status'), dotEl=$('dot'), nameEl=$('devName'), toastEl=$('toast');
 const rowsEl=$('rows'), tlogEl=$('tlog'), termEl=$('term'), peakEl=$('peak'), pwrEl=$('pwr');
@@ -147,47 +142,43 @@ const btnStart=$('btnStartLog'), btnStop=$('btnStopLog'), btnDl=$('btnDownload')
 const fsEl=$('fs'), winEl=$('win'), pauseEl=$('pause'), modeEl=$('mode');
 const btnSerial=$('btnSerial'), baudEl=$('baud');
 
-/* --- Stan połączeń --- */
-let device=null, server=null, chrRX=null, chrTX=null;      // BLE
-let serialPort=null, serialReader=null, serialWriter=null; // Serial
+let device=null, server=null, chrRX=null, chrTX=null;
+let serialPort=null, serialReader=null, serialWriter=null;
 
-/* --- DSP parametry --- */
 let fs=+fsEl.value, winSec=+winEl.value;
 fsEl.onchange=()=>{ fs=+fsEl.value; resetProcessing(); };
 winEl.onchange=()=>{ winSec=+winEl.value; resetProcessing(); };
 
-/* --- Bufory i DSP --- */
 let ring=new Float32Array(1), head=0, filled=0;
 function resetBuffers(){ const N=2**Math.ceil(Math.log2(winSec*fs)); ring=new Float32Array(N); head=0; filled=0; }
 function hpf(x){ const a=Math.exp(-2*Math.PI*0.5/fs); hpf.z=(hpf.z??x)+(1-a)*(x-(hpf.z??x)); return x-hpf.z; }
 function resetProcessing(){ resetBuffers(); hpf.z=undefined; sampleIndex=0; }
 
-/* --- Wykresy --- */
-const timeChart=new Chart($('chartTime'),{type:'line',
-  data:{labels:new Array(600).fill(''),datasets:[{data:new Array(600).fill(null)}]},
-  options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
-    plugins:{legend:{display:false}},scales:{x:{display:false},y:{title:{display:true,text:'Amplituda'}}}}
-});
-const psdChart=new Chart($('chartPsd'),{type:'line',
-  data:{labels:[],datasets:[{data:[]}]},
-  options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
-    plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Hz'}},y:{title:{display:true,text:'dB'}}}}
+let timeChart=null, psdChart=null;
+document.addEventListener('DOMContentLoaded', ()=>{
+  timeChart=new Chart($('chartTime'),{type:'line',
+    data:{labels:[],datasets:[{data:[],spanGaps:true,pointRadius:0}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
+      plugins:{legend:{display:false}},scales:{x:{display:false},y:{title:{display:true,text:'Amplituda'}}}}
+  });
+  psdChart=new Chart($('chartPsd'),{type:'line',
+    data:{labels:[],datasets:[{data:[],spanGaps:true,pointRadius:0}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
+      plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Hz'}},y:{title:{display:true,text:'dB'}}}}
+  });
 });
 
-/* --- Rejestracja CSV --- */
 let logging=false, csv=[], sampleIndex=0, t0=null;
 function csvHeader(){ return 't_sec,sample\n'; }
 function startLog(){ csv=[csvHeader().trimEnd()]; logging=true; sampleIndex=0; t0=performance.now(); btnStart.disabled=true; btnStop.disabled=false; btnDl.disabled=true; }
 function stopLog(){ logging=false; btnStart.disabled=false; btnStop.disabled=true; btnDl.disabled=false; }
 function logSample(y){ if(!logging) return; const t=((performance.now()-t0)/1000).toFixed(6); csv.push(`${t},${y}`); rowsEl.textContent=csv.length-1; tlogEl.textContent=t+' s'; }
 
-/* --- Terminal + toasty + status --- */
 function termRX(text){ const d=document.createElement('div'); d.className='rx'; d.textContent='<< '+text; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
 function termTX(text){ const d=document.createElement('div'); d.className='tx'; d.textContent='>> '+text; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
 function toast(msg,kind='err',ms=3500){ const t=document.createElement('div'); t.className='t'; t.style.borderLeftColor=kind==='ok'?'var(--ok)':kind==='warn'?'var(--warn)':'var(--err)'; t.textContent=msg; toastEl.appendChild(t); setTimeout(()=>t.remove(),ms); }
 function setStatus(txt,color){ statusEl.textContent=txt; dotEl.style.background=color; }
 
-/* --- Analiza PSD --- */
 function analyzePSD(){
   const N=ring.length, re=new Float32Array(N), im=new Float32Array(N), win=new Float32Array(N);
   for(let n=0;n<N;n++) win[n]=0.5*(1-Math.cos(2*Math.PI*n/(N-1)));
@@ -200,26 +191,23 @@ function analyzePSD(){
   for(let i=0;i<mags.length;i++){ if(freqs[i]>=3&&freqs[i]<=8&&mags[i]>peakDb){ peakDb=mags[i]; peakHz=freqs[i]; } }
   peakEl.textContent=isFinite(peakHz)?peakHz.toFixed(2):'–';
   pwrEl.textContent=isFinite(peakDb)?peakDb.toFixed(1):'–';
-  if(!pauseEl.checked){ psdChart.data.labels=freqs; psdChart.data.datasets[0].data=mags; psdChart.update('none'); }
+  if(psdChart && !pauseEl.checked){ psdChart.data.labels=freqs; psdChart.data.datasets[0].data=mags; psdChart.update('none'); }
 }
 
-/* --- Wejście próbek --- */
 function pushSample(x){
   const y=hpf(x);
   ring[head]=y; head=(head+1)&(ring.length-1); filled=Math.min(filled+1,ring.length);
   logSample(y);
-  if(!pauseEl.checked){ const ds=timeChart.data.datasets[0].data; ds.push(y); if(ds.length>600) ds.shift(); timeChart.update('none'); }
+  if(timeChart && !pauseEl.checked){ const ds=timeChart.data.datasets[0].data; ds.push(y); if(ds.length>600) ds.shift(); timeChart.update('none'); }
   if(filled===ring.length) analyzePSD();
 }
 
-/* --- BLE strumień --- */
 function onNotify(e){
   const dv=e.target.value;
   if(modeEl.value==='int16'){ for(let i=0;i<dv.byteLength;i+=2) pushSample(dv.getInt16(i,true)); }
   else{ const s=new TextDecoder().decode(dv); termRX(s); for(const line of s.split('\n')){ const n=parseFloat(line.trim()); if(Number.isFinite(n)) pushSample(n); } }
 }
 
-/* --- BLE połączenie --- */
 async function connectBLE(){
   try{
     device=await navigator.bluetooth.requestDevice({filters:[{services:[UUID_SVC]}]});
@@ -236,37 +224,30 @@ async function connectBLE(){
 function onBLEDisconnected(){ setStatus('Rozłączony','var(--warn)'); btnConn.disabled=false; btnDis.disabled=true; toast('BLE rozłączone','warn',2500); }
 async function disconnectBLE(){ try{ if(chrRX){ await chrRX.stopNotifications().catch(()=>{}); chrRX.removeEventListener('characteristicvaluechanged', onNotify); } if(device?.gatt?.connected) device.gatt.disconnect(); } finally{ onBLEDisconnected(); } }
 
-/* --- Web Serial połączenie (HC-05 przez COM) --- */
 async function connectSerial(){
   if(!('serial' in navigator)){ toast('Brak Web Serial w tej przeglądarce','err'); return; }
   try{
     serialPort=await navigator.serial.requestPort();
     await serialPort.open({ baudRate:+baudEl.value });
-    // surowe bajty:
     const reader=serialPort.readable.getReader();
     setStatus('Połączony (Serial)','var(--ok)'); btnDis.disabled=false; toast('Serial połączony','ok',1800);
     (async()=>{
-      let pending=new Uint8Array(0); // bufor do łączenia porcji
+      let pending=new Uint8Array(0);
       for(;;){
         const {value,done}=await reader.read(); if(done) break;
         if(!(value instanceof Uint8Array)) continue;
-        // 1) spróbuj binarne int16 LE
         if(modeEl.value==='int16'){
-          const bytes= (pending.length? concatU8(pending,value): value); // sklej resztki
+          const bytes=pending.length? concatU8(pending,value): value;
           const evenLen=bytes.length & ~1;
           const dv=new DataView(bytes.buffer, bytes.byteOffset, evenLen);
           for(let i=0;i<dv.byteLength;i+=2) pushSample(dv.getInt16(i,true));
-          pending = bytes.slice(evenLen); // zachowaj ostatni nieparzysty bajt
+          pending = bytes.slice(evenLen);
         }else{
-          // 2) linie tekstowe
-          const s = new TextDecoder().decode(value);
-          termRX(s);
-          const parts = s.split('\n');
-          for(const line of parts){ const n=parseFloat(line.trim()); if(Number.isFinite(n)) pushSample(n); }
+          const s=new TextDecoder().decode(value); termRX(s);
+          for(const line of s.split('\n')){ const n=parseFloat(line.trim()); if(Number.isFinite(n)) pushSample(n); }
         }
       }
     })().catch(()=>{});
-    // writer
     const encoder=new TextEncoderStream(); encoder.readable.pipeTo(serialPort.writable).catch(()=>{});
     serialWriter=encoder.writable.getWriter();
   }catch(err){ toast('Błąd Serial: '+(err?.message||err),'err'); }
@@ -274,7 +255,6 @@ async function connectSerial(){
 function concatU8(a,b){ const o=new Uint8Array(a.length+b.length); o.set(a,0); o.set(b,a.length); return o; }
 async function disconnectSerial(){ try{ if(serialWriter){ try{await serialWriter.close();}catch{} serialWriter=null; } if(serialPort){ try{await serialPort.close();}catch{} serialPort=null; } }catch{} }
 
-/* --- Wysyłanie komend (BLE > Serial) --- */
 async function sendRaw(s){
   const data=new TextEncoder().encode(s);
   if(chrTX){ try{ await chrTX.writeValue(data); termTX(s.replace(/\n/g,'⏎')); return; }catch(e){ toast('BLE TX błąd','err'); } }
@@ -282,11 +262,10 @@ async function sendRaw(s){
   toast('Brak kanału TX (BLE/Serial)','err');
 }
 
-/* --- UI zdarzenia --- */
 btnConnect.onclick=connectBLE;
 btnSerial.onclick=connectSerial;
 btnDisconnect.onclick=async()=>{ await disconnectBLE(); await disconnectSerial(); setStatus('Rozłączony','var(--warn)'); btnDis.disabled=true; };
-btnClear.onclick=()=>{ timeChart.data.datasets[0].data.length=0; timeChart.update('none'); psdChart.data.labels=[]; psdChart.data.datasets[0].data=[]; psdChart.update('none'); termEl.textContent=''; rowsEl.textContent='0'; tlogEl.textContent='0.0 s'; resetProcessing(); };
+btnClear.onclick=()=>{ if(timeChart){ timeChart.data.datasets[0].data.length=0; timeChart.update('none'); } if(psdChart){ psdChart.data.labels=[]; psdChart.data.datasets[0].data=[]; psdChart.update('none'); } termEl.textContent=''; rowsEl.textContent='0'; tlogEl.textContent='0.0 s'; resetProcessing(); };
 btnSend.onclick = ()=> sendRaw(cmdEl.value);
 btnSendLn.onclick= ()=> sendRaw(cmdEl.value+'\n');
 cmdEl.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); sendRaw(cmdEl.value+'\n'); } });
@@ -294,7 +273,6 @@ btnStart.onclick=()=>{ startLog(); toast('Logowanie rozpoczęte','ok',1800); };
 btnStop.onclick =()=>{ stopLog();  toast('Logowanie zatrzymane','warn',1800); };
 btnDownload.onclick=()=>{ const blob=new Blob([csv.join('\n')+'\n'],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); const ts=new Date().toISOString().replace(/[:.]/g,'-'); a.download=`parkinson_log_${ts}.csv`; a.click(); URL.revokeObjectURL(a.href); };
 
-/* --- Init --- */
 setStatus('Rozłączony','var(--warn)'); resetProcessing();
 </script>
 </body>
