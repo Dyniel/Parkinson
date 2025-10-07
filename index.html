@@ -1,28 +1,322 @@
 <!doctype html>
 <html lang="pl">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Parkinson BLE Viz</title>
-<button id="btn">Połącz BLE</button>
-<label>fs [Hz] <input id="fs" type="number" value="200"></label>
-<label>Okno PSD [s] <input id="win" type="number" value="8"></label>
-<div>Szczyt 3–8 Hz: <span id="peak">–</span> Hz, moc: <span id="pwr">–</span> dB</div>
-<canvas id="chartTime"></canvas>
-<canvas id="chartPsd"></canvas>
+<title>Parkinson BLE Monitor</title>
+<!-- <base href="/Parkinson/">  ← odkomentuj jeśli używasz Project Pages -->
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --bg: #0b1020; --card:#11182b; --muted:#6b7a99; --text:#e8eefc; --acc:#4da3ff; --acc2:#7cf; --ok:#1ec28b; --warn:#ffb020; --err:#ff5d5d;
+  --br: 14px; --shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+@media (prefers-color-scheme: light){
+  :root{ --bg:#f7f9ff; --card:#ffffff; --muted:#60708f; --text:#0a1630; --acc:#2a77ff; --acc2:#3aa9ff; --ok:#0ea77a; --warn:#c77a00; --err:#d43a3a; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,var(--bg),#070b17);color:var(--text);font:500 15px/1.5 ui-sans-serif,system-ui,Segoe UI,Arial}
+.container{max-width:1200px;margin:32px auto;padding:0 16px}
+.header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:40px;height:40px;border-radius:12px;background:radial-gradient(120% 120% at 0% 0%, var(--acc) 0%, var(--acc2) 60%, transparent 61%),linear-gradient(180deg, var(--card), #0b1530); box-shadow:var(--shadow)}
+.title{font-weight:800;letter-spacing:.2px}
+.pill{padding:4px 10px;border-radius:999px;background:#0f1a33;color:var(--muted);display:flex;gap:8px;align-items:center}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.row{display:grid;gap:16px}
+@media(min-width:1024px){ .row{grid-template-columns: 1.35fr 1fr} }
+.card{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.00));border:1px solid rgba(255,255,255,.08);border-radius:var(--br);box-shadow:var(--shadow)}
+.card .head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.card .body{padding:16px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button, input, select, textarea{font:inherit;color:var(--text)}
+button{background:linear-gradient(180deg,var(--acc),var(--acc2));border:none;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+button.secondary{background:#0f1a33;border:1px solid rgba(255,255,255,.08);font-weight:600}
+button.ghost{background:transparent;border:1px dashed rgba(255,255,255,.18)}
+button:disabled{opacity:.6;cursor:not-allowed}
+input[type="number"], input[type="text"], select{
+  background:#0f1a33;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 10px;min-width:80px
+}
+label{display:flex;gap:6px;align-items:center;color:var(--muted)}
+.badge{padding:3px 8px;border-radius:999px;background:#0f1a33;color:var(--muted);font-weight:700}
+canvas{width:100%;height:340px;display:block}
+.kpi{display:flex;gap:14px;flex-wrap:wrap}
+.kpi .item{background:#0f1a33;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;min-width:180px}
+.kpi .item .v{font-variant-numeric:tabular-nums;font-weight:800;font-size:18px}
+.terminal{font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0b1328;border-radius:12px;border:1px solid rgba(255,255,255,.08);min-height:180px;max-height:240px;overflow:auto;padding:10px;white-space:pre-wrap}
+.terminal .rx{color:#a7ffb5}
+.terminal .tx{color:#a6c8ff}
+.inline{display:flex;gap:10px;align-items:center}
+.inline input[type="text"]{flex:1}
+.switch{display:flex;gap:10px;align-items:center}
+.switch input{accent-color:var(--acc)}
+.footer{margin:16px 0;color:var(--muted);font-size:13px}
+.toast{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:10px;z-index:99}
+.toast .t{background:#0f1a33;border:1px solid rgba(255,255,255,.18);border-left:4px solid var(--err);color:#fff;padding:10px 12px;border-radius:10px;box-shadow:var(--shadow)}
+hr.sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <div class="title">Parkinson BLE Monitor</div>
+        <div class="footer">Web Bluetooth • Chrome Desktop/Android • NUS (BLE UART)</div>
+      </div>
+    </div>
+    <div class="pill" id="pill">
+      <div class="dot" id="dot"></div>
+      <span id="status">Rozłączony</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head">
+      <div class="controls">
+        <button id="btnConnect">Połącz</button>
+        <button id="btnDisconnect" class="secondary" disabled>Rozłącz</button>
+        <label>Tryb
+          <select id="mode">
+            <option value="int16" selected>int16 LE</option>
+            <option value="lines">Linie tekstowe</option>
+          </select>
+        </label>
+        <label>fs [Hz] <input id="fs" type="number" value="200" min="50" max="2000" step="10"></label>
+        <label>Okno PSD [s] <input id="win" type="number" value="8" min="2" max="30" step="1"></label>
+        <span class="badge" id="devName">—</span>
+      </div>
+      <div class="switch">
+        <label><input type="checkbox" id="pause"> Pauza wykresów</label>
+        <button id="btnClear" class="ghost">Czyść</button>
+      </div>
+    </div>
+    <div class="body">
+      <div class="kpi">
+        <div class="item">Tremor peak 3–8 Hz<br><span class="v"><span id="peak">–</span> Hz</span></div>
+        <div class="item">Moc piku<br><span class="v"><span id="pwr">–</span> dB</span></div>
+        <div class="item">Próbek zapisanych<br><span class="v" id="rows">0</span></div>
+        <div class="item">Czas logu<br><span class="v" id="tlog">0.0 s</span></div>
+      </div>
+      <hr class="sep">
+      <div class="row">
+        <div class="card">
+          <div class="head"><b>Sygnał w czasie</b></div>
+          <div class="body"><canvas id="chartTime"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="head"><b>Widmo / PSD</b></div>
+          <div class="body"><canvas id="chartPsd"></canvas></div>
+        </div>
+      </div>
+
+      <hr class="sep">
+      <div class="card">
+        <div class="head"><b>Terminal i komendy</b></div>
+        <div class="body">
+          <div class="inline">
+            <input id="cmd" type="text" placeholder="komenda do urządzenia… (Enter wysyła)">
+            <button id="btnSend" class="secondary">Wyślij</button>
+            <button id="btnSendLn" class="secondary">Wyślij + \\n</button>
+          </div>
+          <div class="terminal" id="term" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <hr class="sep">
+      <div class="card">
+        <div class="head"><b>Rejestracja do CSV</b></div>
+        <div class="body">
+          <div class="controls">
+            <button id="btnStartLog">Start</button>
+            <button id="btnStopLog" class="secondary" disabled>Stop</button>
+            <button id="btnDownload" class="secondary" disabled>Pobierz CSV</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">UUID serwisu: <code>6e400001-…-e50e24dcca9e</code> • RX notify: <code>6e400003-…</code> • TX write: <code>6e400002-…</code></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fft.js@4.0.4/dist/fft.min.js"></script>
 <script>
-const UUID_SVC='6e400001-b5a3-f393-e0a9-e50e24dcca9e',UUID_RX='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
-let fs=+document.getElementById('fs').value,winSec=+document.getElementById('win').value;
-document.getElementById('fs').onchange=e=>fs=+e.target.value;
-document.getElementById('win').onchange=e=>{winSec=+e.target.value;resetBuffers();};
-let buf=new Float32Array(1),head=0,filled=0; function resetBuffers(){const N=2**Math.ceil(Math.log2(winSec*fs));buf=new Float32Array(N);head=0;filled=0;} resetBuffers();
-const timeChart=new Chart(document.getElementById('chartTime'),{type:'line',data:{labels:new Array(500).fill(''),datasets:[{data:new Array(500).fill(null)}]},options:{animation:false,parsing:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{title:{display:true,text:'Sygnał'}}}}});
-const psdChart=new Chart(document.getElementById('chartPsd'),{type:'line',data:{labels:[],datasets:[{data:[]}]},options:{animation:false,parsing:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Hz'}},y:{title:{display:true,text:'dB'}}}}});
-async function connectBLE(){const dev=await navigator.bluetooth.requestDevice({filters:[{services:[UUID_SVC]}]});const srv=await (await dev.gatt.connect()).getPrimaryService(UUID_SVC);const rx=await srv.getCharacteristic(UUID_RX);await rx.startNotifications();rx.addEventListener('characteristicvaluechanged',onChunk);}
-function onChunk(e){const v=e.target.value;for(let i=0;i<v.byteLength;i+=2){pushSample(v.getInt16(i,true));}}
-function pushSample(x){const a=Math.exp(-2*Math.PI*0.5/fs);pushSample.z=(pushSample.z??x)+(1-a)*(x-(pushSample.z??x));const y=x-pushSample.z;buf[head]=y;head=(head+1)&(buf.length-1);filled=Math.min(filled+1,buf.length);const ds=timeChart.data.datasets[0].data;ds.push(y);if(ds.length>500)ds.shift();timeChart.update('none');if(filled===buf.length)analyzePSD();}
-function analyzePSD(){const N=buf.length,re=new Float32Array(N),im=new Float32Array(N),hann=new Float32Array(N);for(let n=0;n<N;n++)hann[n]=0.5*(1-Math.cos(2*Math.PI*n/(N-1)));const start=head;for(let n=0;n<N;n++){const idx=(start+n)&(N-1);re[n]=buf[idx]*hann[n];}const f=new FFT(N);f.transform(re,im,re,im);const mags=[],freqs=[],norm=1/(N*N),N2=Math.floor(N/2);for(let k=1;k<=N2;k++){const p=(re[k]*re[k]+im[k]*im[k])*norm;const hz=k*fs/N;freqs.push(hz);mags.push(10*Math.log10(p+1e-12));}let peakHz=NaN,peakDb=-1e9;for(let i=0;i<mags.length;i++){if(freqs[i]>=3&&freqs[i]<=8&&mags[i]>peakDb){peakDb=mags[i];peakHz=freqs[i];}}document.getElementById('peak').textContent=isFinite(peakHz)?peakHz.toFixed(2):'–';document.getElementById('pwr').textContent=isFinite(peakDb)?peakDb.toFixed(1):'–';psdChart.data.labels=freqs;psdChart.data.datasets[0].data=mags;psdChart.update('none');}
-document.getElementById('btn').onclick=connectBLE;
+/* --- Konfiguracja BLE (Nordic UART Service) --- */
+const UUID_SVC='6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const UUID_RX ='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+const UUID_TX ='6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+
+/* --- Elementy UI --- */
+const $ = id => document.getElementById(id);
+const statusEl = $('status'), dotEl=$('dot'), nameEl=$('devName'), toastEl=$('toast');
+const rowsEl=$('rows'), tlogEl=$('tlog'), termEl=$('term'), peakEl=$('peak'), pwrEl=$('pwr');
+const btnConn=$('btnConnect'), btnDis=$('btnDisconnect'), btnClear=$('btnClear');
+const btnSend=$('btnSend'), btnSendLn=$('btnSendLn'), cmdEl=$('cmd');
+const btnStart=$('btnStartLog'), btnStop=$('btnStopLog'), btnDl=$('btnDownload');
+const fsEl=$('fs'), winEl=$('win'), pauseEl=$('pause'), modeEl=$('mode');
+
+/* --- Stan BLE --- */
+let device=null, server=null, chrRX=null, chrTX=null;
+
+/* --- Parametry przetwarzania --- */
+let fs=+fsEl.value, winSec=+winEl.value;
+fsEl.onchange=()=>{ fs=+fsEl.value; resetProcessing(); };
+winEl.onchange=()=>{ winSec=+winEl.value; resetProcessing(); };
+
+/* --- Bufory i DSP --- */
+let ring=new Float32Array(1), head=0, filled=0;
+function resetBuffers(){ const N=2**Math.ceil(Math.log2(winSec*fs)); ring=new Float32Array(N); head=0; filled=0; }
+function hpf(x){ const a=Math.exp(-2*Math.PI*0.5/fs); hpf.z=(hpf.z??x)+(1-a)*(x-(hpf.z??x)); return x-hpf.z; }
+function resetProcessing(){ resetBuffers(); hpf.z=undefined; sampleIndex=0; }
+
+/* --- Wykresy --- */
+const timeChart=new Chart($('chartTime'),{
+  type:'line',data:{labels:new Array(600).fill(''),datasets:[{data:new Array(600).fill(null)}]},
+  options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
+    plugins:{legend:{display:false}},scales:{x:{display:false},y:{title:{display:true,text:'Amplituda'}}}}
+});
+const psdChart=new Chart($('chartPsd'),{
+  type:'line',data:{labels:[],datasets:[{data:[]}]},
+  options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
+    plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Hz'}},y:{title:{display:true,text:'dB'}}}}
+});
+
+/* --- Rejestracja CSV --- */
+let logging=false, csv=[], sampleIndex=0, t0=null;
+function csvHeader(){ return 't_sec,sample\n'; }
+function startLog(){ csv=[csvHeader().trimEnd()]; logging=true; sampleIndex=0; t0=performance.now(); btnStart.disabled=true; btnStop.disabled=false; btnDl.disabled=true; }
+function stopLog(){ logging=false; btnStart.disabled=false; btnStop.disabled=true; btnDl.disabled=false; }
+function logSample(y){
+  if(!logging) return;
+  const t=((performance.now()-t0)/1000).toFixed(6);
+  csv.push(`${t},${y}`);
+  rowsEl.textContent = csv.length-1;
+  tlogEl.textContent = t+' s';
+}
+
+/* --- Terminal --- */
+function termRX(text){ const d=document.createElement('div'); d.className='rx'; d.textContent='<< '+text; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
+function termTX(text){ const d=document.createElement('div'); d.className='tx'; d.textContent='>> '+text; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
+
+/* --- Toast --- */
+function toast(msg,kind='err',ms=3500){
+  const t=document.createElement('div'); t.className='t'; t.style.borderLeftColor= kind==='ok'? 'var(--ok)': kind==='warn'? 'var(--warn)':'var(--err)';
+  t.textContent=msg; toastEl.appendChild(t); setTimeout(()=>t.remove(), ms);
+}
+
+/* --- Status --- */
+function setStatus(txt,color){ statusEl.textContent=txt; dotEl.style.background=color; }
+
+/* --- Analiza PSD --- */
+function analyzePSD(){
+  const N=ring.length, re=new Float32Array(N), im=new Float32Array(N), win=new Float32Array(N);
+  for(let n=0;n<N;n++) win[n]=0.5*(1-Math.cos(2*Math.PI*n/(N-1)));
+  const start=head;
+  for(let n=0;n<N;n++){ const idx=(start+n)&(N-1); re[n]=ring[idx]*win[n]; }
+  const f=new FFT(N); f.transform(re,im,re,im);
+  const mags=[],freqs=[],norm=1/(N*N),N2=Math.floor(N/2);
+  for(let k=1;k<=N2;k++){ const p=(re[k]*re[k]+im[k]*im[k])*norm; const hz=k*fs/N; freqs.push(hz); mags.push(10*Math.log10(p+1e-12)); }
+  // pik 3–8 Hz
+  let peakHz=NaN, peakDb=-1e9;
+  for(let i=0;i<mags.length;i++){ if(freqs[i]>=3 && freqs[i]<=8 && mags[i]>peakDb){ peakDb=mags[i]; peakHz=freqs[i]; } }
+  peakEl.textContent = isFinite(peakHz)? peakHz.toFixed(2) : '–';
+  pwrEl.textContent  = isFinite(peakDb)? peakDb.toFixed(1) : '–';
+  if(!pauseEl.checked){
+    psdChart.data.labels=freqs; psdChart.data.datasets[0].data=mags; psdChart.update('none');
+  }
+}
+
+/* --- Strumień --- */
+function pushSample(x){
+  const y=hpf(x);
+  ring[head]=y; head=(head+1)&(ring.length-1); filled=Math.min(filled+1, ring.length);
+  logSample(y);
+  if(!pauseEl.checked){
+    const ds=timeChart.data.datasets[0].data; ds.push(y); if(ds.length>600) ds.shift(); timeChart.update('none');
+  }
+  if(filled===ring.length) analyzePSD();
+}
+function onNotify(e){
+  const dv=e.target.value;
+  if(modeEl.value==='int16'){
+    for(let i=0;i<dv.byteLength;i+=2){ pushSample(dv.getInt16(i,true)); }
+  }else{
+    const s=new TextDecoder().decode(dv); termRX(s);
+    for(const line of s.split('\n')){ const n=parseFloat(line.trim()); if(Number.isFinite(n)) pushSample(n); }
+  }
+}
+
+/* --- Połączenie / rozłączenie --- */
+async function connect(){
+  try{
+    device = await navigator.bluetooth.requestDevice({ filters:[{ services:[UUID_SVC] }] });
+    nameEl.textContent = device.name || 'BLE device';
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+    server = await device.gatt.connect();
+    const svc = await server.getPrimaryService(UUID_SVC);
+    chrRX = await svc.getCharacteristic(UUID_RX);
+    chrTX = await svc.getCharacteristic(UUID_TX).catch(()=>null);
+    await chrRX.startNotifications();
+    chrRX.addEventListener('characteristicvaluechanged', onNotify);
+    resetProcessing();
+    setStatus('Połączony', 'var(--ok)');
+    btnConn.disabled=true; btnDis.disabled=false;
+    toast('Połączono', 'ok', 2000);
+  }catch(err){
+    toast('Błąd połączenia: '+ (err?.message||err), 'err');
+  }
+}
+function onDisconnected(){
+  setStatus('Rozłączony', 'var(--warn)');
+  btnConn.disabled=false; btnDis.disabled=true;
+  toast('Rozłączono', 'warn', 2500);
+}
+async function disconnect(){
+  try{
+    if(chrRX){ await chrRX.stopNotifications().catch(()=>{}); chrRX.removeEventListener('characteristicvaluechanged', onNotify); }
+    if(device?.gatt?.connected) device.gatt.disconnect();
+  }finally{
+    onDisconnected();
+  }
+}
+
+/* --- Wysyłanie komend --- */
+async function sendRaw(s){
+  if(!chrTX){ toast('Brak charakterystyki TX (write)', 'err'); return; }
+  const data=new TextEncoder().encode(s);
+  try{ await chrTX.writeValue(data); termTX(s.replace(/\n/g,'⏎')); }
+  catch(err){ toast('Błąd wysyłania: '+(err?.message||err), 'err'); }
+}
+
+/* --- UI events --- */
+btnConnect.onclick=connect;
+btnDisconnect.onclick=disconnect;
+btnClear.onclick=()=>{
+  timeChart.data.datasets[0].data.length=0; timeChart.update('none');
+  psdChart.data.labels=[]; psdChart.data.datasets[0].data=[]; psdChart.update('none');
+  termEl.textContent=''; rowsEl.textContent='0'; tlogEl.textContent='0.0 s';
+  resetProcessing();
+};
+btnSend.onclick = ()=> sendRaw(cmdEl.value);
+btnSendLn.onclick= ()=> sendRaw(cmdEl.value+'\n');
+cmdEl.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sendRaw(cmdEl.value+'\n'); } });
+
+btnStart.onclick = ()=>{ startLog(); toast('Logowanie rozpoczęte','ok',1800); };
+btnStop.onclick  = ()=>{ stopLog(); toast('Logowanie zatrzymane','warn',1800); };
+btnDownload.onclick=()=>{
+  const blob=new Blob([csv.join('\n')+'\n'],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  const ts=new Date().toISOString().replace(/[:.]/g,'-'); a.download=`parkinson_log_${ts}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+};
+
+/* --- Init --- */
+setStatus('Rozłączony','var(--warn)'); resetProcessing();
 </script>
+</body>
 </html>
