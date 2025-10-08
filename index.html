@@ -3,111 +3,89 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Parkinson Monitor — BLE / Serial</title>
-<!-- <base href="/Parkinson/"> -->
+<title>Parkinson Monitor — Serial</title>
 <link rel="icon" href="data:,">
 <style>
-:root{--bg:#0b1020;--card:#11182b;--muted:#6b7a99;--text:#e8eefc;--acc:#4da3ff;--acc2:#7cf;--ok:#1ec28b;--warn:#ffb020;--err:#ff5d5d;--br:14px;--shadow:0 10px 30px rgba(0,0,0,.35)}
-@media (prefers-color-scheme: light){:root{--bg:#f7f9ff;--card:#fff;--muted:#60708f;--text:#0a1630;--acc:#2a77ff;--acc2:#3aa9ff;--ok:#0ea77a;--warn:#c77a00;--err:#d43a3a}}
-*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,var(--bg),#070b17);color:var(--text);font:500 15px/1.5 ui-sans-serif,system-ui,Segoe UI,Arial}
-.container{max-width:1200px;margin:32px auto;padding:0 16px}
-.header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
-.brand{display:flex;gap:12px;align-items:center}
-.logo{width:40px;height:40px;border-radius:12px;background:radial-gradient(120% 120% at 0% 0%, var(--acc) 0%, var(--acc2) 60%, transparent 61%),linear-gradient(180deg,var(--card),#0b1530);box-shadow:var(--shadow)}
-.title{font-weight:800;letter-spacing:.2px}
-.pill{padding:4px 10px;border-radius:999px;background:#0f1a33;color:var(--muted);display:flex;gap:8px;align-items:center}
+:root{--bg:#0b1020;--card:#11182b;--muted:#9bb0cf;--text:#e8eefc;--acc:#4da3ff;--acc2:#7cf;--ok:#1ec28b;--warn:#ffb020;--err:#ff5d5d;--br:14px}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,var(--bg),#070b17);color:var(--text);font:500 15px/1.5 ui-sans-serif,system-ui,Segoe UI,Arial}
+.container{max-width:1100px;margin:28px auto;padding:0 16px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.pill{display:flex;gap:8px;align-items:center;background:#0f1a33;color:var(--muted);padding:4px 10px;border-radius:999px}
 .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
-.row{display:grid;gap:16px}
-@media (min-width:1024px){.row{grid-template-columns:1.35fr 1fr}}
-.card{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.00));border:1px solid rgba(255,255,255,.08);border-radius:var(--br);box-shadow:var(--shadow)}
-.card .head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
-.card .body{padding:16px}
+.card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px}
+.card .head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.card .body{padding:14px}
 .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-button,input,select,textarea{font:inherit;color:var(--text)}
-button{background:linear-gradient(180deg,var(--acc),var(--acc2));border:none;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
-button.secondary{background:#0f1a33;border:1px solid rgba(255,255,255,.08);font-weight:600}
-button.ghost{background:transparent;border:1px dashed rgba(255,255,255,.18)}
+button,input,select{font:inherit}
+button{background:linear-gradient(180deg,var(--acc),var(--acc2));color:#fff;border:none;border-radius:12px;padding:9px 12px;font-weight:700;cursor:pointer}
+button.secondary{background:#0f1a33;border:1px solid rgba(255,255,255,.3);color:#fff}
 button:disabled{opacity:.6;cursor:not-allowed}
-input[type="number"],input[type="text"],select{background:#0f1a33;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 10px;min-width:80px}
-label{display:flex;gap:6px;align-items:center;color:var(--muted)}
-.badge{padding:3px 8px;border-radius:999px;background:#0f1a33;color:var(--muted);font-weight:700}
-canvas{width:100%;height:340px;display:block}
-.kpi{display:flex;gap:14px;flex-wrap:wrap}
-.kpi .item{background:#0f1a33;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;min-width:180px}
-.kpi .item .v{font-variant-numeric:tabular-nums;font-weight:800;font-size:18px}
-.terminal{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0b1328;border-radius:12px;border:1px solid rgba(255,255,255,.08);min-height:180px;max-height:240px;overflow:auto;padding:10px;white-space:pre-wrap}
-.terminal .rx{color:#a7ffb5}.terminal .tx{color:#a6c8ff}
-.inline{display:flex;gap:10px;align-items:center}.inline input[type="text"]{flex:1}
-.switch{display:flex;gap:10px;align-items:center}.switch input{accent-color:var(--acc)}
-.footer{margin:16px 0;color:var(--muted);font-size:13px}
-.toast{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:10px;z-index:99}
-.toast .t{background:#0f1a33;border:1px solid rgba(255,255,255,.18);border-left:4px solid var(--err);color:#fff;padding:10px 12px;border-radius:10px;box-shadow:var(--shadow)}
-hr.sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
+input[type="number"],input[type="text"],select{background:#0f1a33;color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:8px 10px}
+canvas{width:100%;height:320px;display:block}
+.kpi{display:flex;gap:12px;flex-wrap:wrap}
+.kpi .item{background:#0f1a33;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 12px;min-width:160px}
+.kpi .v{font-weight:800}
+.terminal{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0b1328;border:1px solid rgba(255,255,255,.12);border-radius:12px;min-height:180px;max-height:260px;overflow:auto;padding:10px;white-space:pre-wrap}
+.terminal .rx{color:#9effa6}.terminal .tx{color:#9dbaff}
+.inline{display:flex;gap:10px}.inline input{flex:1}
+.row{display:grid;gap:14px}
+@media(min-width:960px){.row{grid-template-columns:1.35fr 1fr}}
+hr{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <div class="brand">
-      <div class="logo"></div>
-      <div>
-        <div class="title">Parkinson Monitor — BLE / Serial</div>
-        <div class="footer">BLE (NUS) • Web Serial (HC-05 via COM) • Chrome</div>
-      </div>
-    </div>
+    <div><b>Parkinson Monitor — Serial</b></div>
     <div class="pill"><div class="dot" id="dot"></div><span id="status">Rozłączony</span></div>
   </div>
 
   <div class="card">
     <div class="head">
       <div class="controls">
-        <button id="btnConnect">Połącz BLE</button>
+        <button id="btnSerial">Połącz Serial</button>
         <button id="btnDisconnect" class="secondary" disabled>Rozłącz</button>
-        <label>Tryb
-          <select id="mode">
-            <option value="int16" selected>int16 LE</option>
-            <option value="lines">Linie tekstowe</option>
-          </select>
-        </label>
-        <button id="btnSerial" class="secondary">Połącz Serial</button>
         <label>baud <input id="baud" type="number" value="115200" min="1200" max="921600" step="1200"></label>
-        <label>fs [Hz] <input id="fs" type="number" value="200" min="50" max="2000" step="10"></label>
-        <label>Okno PSD [s] <input id="win" type="number" value="8" min="2" max="30" step="1"></label>
-        <span class="badge" id="devName">—</span>
+        <label>fs [Hz] <input id="fs" type="number" value="2" min="0.5" max="2000" step="0.1"></label>
+        <label>Okno PSD [s] <input id="win" type="number" value="4" min="1" max="30" step="1"></label>
       </div>
-      <div class="switch">
+      <div class="controls">
         <label><input type="checkbox" id="pause"> Pauza wykresów</label>
-        <button id="btnClear" class="ghost">Czyść</button>
+        <button id="btnClear" class="secondary">Czyść</button>
       </div>
     </div>
 
     <div class="body">
       <div class="kpi">
-        <div class="item">Tremor peak 3–8 Hz<br><span class="v"><span id="peak">–</span> Hz</span></div>
-        <div class="item">Moc piku<br><span class="v"><span id="pwr">–</span> dB</span></div>
-        <div class="item">Próbek zapisanych<br><span class="v" id="rows">0</span></div>
+        <div class="item">Tremor peak 3–8 Hz<br><span class="v" id="peak">– Hz</span></div>
+        <div class="item">Moc piku<br><span class="v" id="pwr">– dB</span></div>
+        <div class="item">Próbek<br><span class="v" id="rows">0</span></div>
         <div class="item">Czas logu<br><span class="v" id="tlog">0.0 s</span></div>
+        <div class="item">Bateria<br><span class="v" id="vbatt">– V</span></div>
       </div>
-      <hr class="sep">
+
+      <hr>
       <div class="row">
         <div class="card"><div class="head"><b>Sygnał w czasie</b></div><div class="body"><canvas id="chartTime"></canvas></div></div>
         <div class="card"><div class="head"><b>Widmo / PSD</b></div><div class="body"><canvas id="chartPsd"></canvas></div></div>
       </div>
 
-      <hr class="sep">
+      <hr>
       <div class="card">
         <div class="head"><b>Terminal i komendy</b></div>
         <div class="body">
           <div class="inline">
-            <input id="cmd" type="text" placeholder="komenda do urządzenia… (Enter wysyła)">
-            <button id="btnSend" class="secondary">Wyślij</button>
+            <input id="cmd" type="text" placeholder="komenda… (Enter = +\\n)">
+            <button id="btnSend"   class="secondary">Wyślij</button>
             <button id="btnSendLn" class="secondary">Wyślij + \\n</button>
+            <button id="btnStart"  class="secondary">Start (t&lt;1&gt;, s&lt;1&gt;)</button>
           </div>
-          <div class="terminal" id="term" aria-live="polite"></div>
+          <div class="terminal" id="term"></div>
         </div>
       </div>
 
-      <hr class="sep">
+      <hr>
       <div class="card">
         <div class="head"><b>Rejestracja do CSV</b></div>
         <div class="body">
@@ -118,161 +96,225 @@ hr.sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
           </div>
         </div>
       </div>
-
-      <div class="footer">BLE UUID: svc <code>6e400001-…</code> • rx notify <code>6e400003-…</code> • tx write <code>6e400002-…</code></div>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fft.js@4.0.4/dist/fft.min.js"></script>
 <script>
-const UUID_SVC='6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-const UUID_RX ='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
-const UUID_TX ='6e400002-b5a3-f393-e0a9-e50e24dcca9e';
-
+/* ======== UI ======== */
 const $=id=>document.getElementById(id);
-const statusEl=$('status'), dotEl=$('dot'), nameEl=$('devName'), toastEl=$('toast');
-const rowsEl=$('rows'), tlogEl=$('tlog'), termEl=$('term'), peakEl=$('peak'), pwrEl=$('pwr');
-const btnConn=$('btnConnect'), btnDis=$('btnDisconnect'), btnClear=$('btnClear');
-const btnSend=$('btnSend'), btnSendLn=$('btnSendLn'), cmdEl=$('cmd');
-const btnStart=$('btnStartLog'), btnStop=$('btnStopLog'), btnDl=$('btnDownload');
-const fsEl=$('fs'), winEl=$('win'), pauseEl=$('pause'), modeEl=$('mode');
-const btnSerial=$('btnSerial'), baudEl=$('baud');
+const statusEl=$('status'), dotEl=$('dot'), termEl=$('term'), vbEl=$('vbatt');
+const rowsEl=$('rows'), tlogEl=$('tlog'), peakEl=$('peak'), pwrEl=$('pwr');
+const btnSerial=$('btnSerial'), btnDis=$('btnDisconnect'), btnClear=$('btnClear');
+const btnSend=$('btnSend'), btnSendLn=$('btnSendLn'), btnStartBtn=$('btnStart'), cmdEl=$('cmd');
+const fsEl=$('fs'), winEl=$('win'), pauseEl=$('pause'), baudEl=$('baud');
+const btnStartLog=$('btnStartLog'), btnStopLog=$('btnStopLog'), btnDownload=$('btnDownload');
 
-let device=null, server=null, chrRX=null, chrTX=null;
-let serialPort=null, serialReader=null, serialWriter=null;
+let serialPort=null, serialWriter=null;
+function setStatus(txt,color){ statusEl.textContent=txt; dotEl.style.background=color; }
+function termRX(s){ const d=document.createElement('div'); d.className='rx'; d.textContent='<< '+s; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
+function termTX(s){ const d=document.createElement('div'); d.className='tx'; d.textContent='>> '+s; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
 
+/* ======== DSP ======== */
 let fs=+fsEl.value, winSec=+winEl.value;
 fsEl.onchange=()=>{ fs=+fsEl.value; resetProcessing(); };
 winEl.onchange=()=>{ winSec=+winEl.value; resetProcessing(); };
 
-let ring=new Float32Array(1), head=0, filled=0;
-function resetBuffers(){ const N=2**Math.ceil(Math.log2(winSec*fs)); ring=new Float32Array(N); head=0; filled=0; }
+let ring=new Float32Array(1), head=0, filled=0, sampleCount=0;
+function resetBuffers(){ const N=2**Math.ceil(Math.log2(Math.max(2,winSec)*Math.max(0.5,fs))); ring=new Float32Array(N); head=0; filled=0; }
 function hpf(x){ const a=Math.exp(-2*Math.PI*0.5/fs); hpf.z=(hpf.z??x)+(1-a)*(x-(hpf.z??x)); return x-hpf.z; }
-function resetProcessing(){ resetBuffers(); hpf.z=undefined; sampleIndex=0; }
+function resetProcessing(){ resetBuffers(); hpf.z=undefined; sampleCount=0; vbEl.textContent='– V'; }
 
-let timeChart=null, psdChart=null;
-document.addEventListener('DOMContentLoaded', ()=>{
-  timeChart=new Chart($('chartTime'),{type:'line',
-    data:{labels:[],datasets:[{data:[],spanGaps:true,pointRadius:0}]},
+/* ======== FFT (radix-2, in-place) ======== */
+function fftRadix2(re, im){
+  const n = re.length;
+  // bit-reverse
+  let j=0;
+  for(let i=1;i<n-1;i++){
+    let bit = n>>1;
+    for(; j & bit; bit>>=1) j &= ~bit;
+    j |= bit;
+    if(i<j){ [re[i],re[j]]=[re[j],re[i]]; [im[i],im[j]]=[im[j],im[i]]; }
+  }
+  for(let len=2; len<=n; len<<=1){
+    const ang = -2*Math.PI/len;
+    const wlenRe = Math.cos(ang), wlenIm = Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let wRe=1, wIm=0;
+      for(let k=0;k<len/2;k++){
+        const uRe = re[i+k], uIm = im[i+k];
+        const vRe = re[i+k+len/2]*wRe - im[i+k+len/2]*wIm;
+        const vIm = re[i+k+len/2]*wIm + im[i+k+len/2]*wRe;
+        re[i+k] = uRe + vRe;
+        im[i+k] = uIm + vIm;
+        re[i+k+len/2] = uRe - vRe;
+        im[i+k+len/2] = uIm - vIm;
+        const tRe=wRe*wlenRe - wIm*wlenIm;
+        wIm = wRe*wlenIm + wIm*wlenRe;
+        wRe = tRe;
+      }
+    }
+  }
+}
+
+/* ======== Wykresy ======== */
+let timeChart, psdChart;
+window.addEventListener('load', ()=>{
+  timeChart=new Chart($('chartTime'),{
+    type:'line',
+    data:{datasets:[{label:'Sygnał',data:[],borderWidth:2,pointRadius:0,tension:0,borderColor:'#4da3ff'}]},
     options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
-      plugins:{legend:{display:false}},scales:{x:{display:false},y:{title:{display:true,text:'Amplituda'}}}}
+      plugins:{legend:{display:false}},
+      scales:{x:{type:'linear',title:{display:true,text:'czas [s]'}},y:{title:{display:true,text:'Amplituda'}}}}
   });
-  psdChart=new Chart($('chartPsd'),{type:'line',
-    data:{labels:[],datasets:[{data:[],spanGaps:true,pointRadius:0}]},
+  psdChart=new Chart($('chartPsd'),{
+    type:'line',
+    data:{datasets:[{label:'PSD',data:[],borderWidth:2,pointRadius:0,tension:0,borderColor:'#7cf'}]},
     options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
-      plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Hz'}},y:{title:{display:true,text:'dB'}}}}
+      plugins:{legend:{display:false}},
+      scales:{x:{title:{display:true,text:'Hz'}},y:{title:{display:true,text:'dB'}}}}
   });
 });
 
-let logging=false, csv=[], sampleIndex=0, t0=null;
-function csvHeader(){ return 't_sec,sample\n'; }
-function startLog(){ csv=[csvHeader().trimEnd()]; logging=true; sampleIndex=0; t0=performance.now(); btnStart.disabled=true; btnStop.disabled=false; btnDl.disabled=true; }
-function stopLog(){ logging=false; btnStart.disabled=false; btnStop.disabled=true; btnDl.disabled=false; }
-function logSample(y){ if(!logging) return; const t=((performance.now()-t0)/1000).toFixed(6); csv.push(`${t},${y}`); rowsEl.textContent=csv.length-1; tlogEl.textContent=t+' s'; }
+/* ======== CSV ======== */
+let logging=false, csv=[], t0=null;
+function csvHeader(){ return 't_sec,sample,vbat_V\n'; }
+function startLog(){ csv=[csvHeader().trimEnd()]; logging=true; t0=performance.now(); btnStartLog.disabled=true; btnStopLog.disabled=false; btnDownload.disabled=true; }
+function stopLog(){ logging=false; btnStartLog.disabled=false; btnStopLog.disabled=true; btnDownload.disabled=false; }
+function logRow(y){ if(!logging) return; const t=((performance.now()-t0)/1000).toFixed(6); csv.push(`${t},${y},${(vbEl.textContent||'').replace(' V','')}`); rowsEl.textContent=csv.length-1; tlogEl.textContent=t+' s'; }
 
-function termRX(text){ const d=document.createElement('div'); d.className='rx'; d.textContent='<< '+text; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
-function termTX(text){ const d=document.createElement('div'); d.className='tx'; d.textContent='>> '+text; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
-function toast(msg,kind='err',ms=3500){ const t=document.createElement('div'); t.className='t'; t.style.borderLeftColor=kind==='ok'?'var(--ok)':kind==='warn'?'var(--warn)':'var(--err)'; t.textContent=msg; toastEl.appendChild(t); setTimeout(()=>t.remove(),ms); }
-function setStatus(txt,color){ statusEl.textContent=txt; dotEl.style.background=color; }
-
+/* ======== PSD ======== */
 function analyzePSD(){
-  const N=ring.length, re=new Float32Array(N), im=new Float32Array(N), win=new Float32Array(N);
-  for(let n=0;n<N;n++) win[n]=0.5*(1-Math.cos(2*Math.PI*n/(N-1)));
+  const N = ring.length;
+  const re = new Float32Array(N);
+  const im = new Float32Array(N);
+  const win = new Float32Array(N);
+  for(let n=0;n<N;n++) win[n]=0.5*(1-Math.cos(2*Math.PI*n/(N-1))); // Hanning
+
   const start=head;
-  for(let n=0;n<N;n++){ const idx=(start+n)&(N-1); re[n]=ring[idx]*win[n]; }
-  const f=new FFT(N); f.transform(re,im,re,im);
-  const mags=[],freqs=[],norm=1/(N*N),N2=Math.floor(N/2);
-  for(let k=1;k<=N2;k++){ const p=(re[k]*re[k]+im[k]*im[k])*norm; const hz=k*fs/N; freqs.push(hz); mags.push(10*Math.log10(p+1e-12)); }
+  for(let n=0;n<N;n++){ const idx=(start+n)&(N-1); re[n]=ring[idx]*win[n]; im[n]=0; }
+
+  fftRadix2(re,im);
+
+  const mags=[], freqs=[];
+  const norm = 1/(N*N);
+  const N2 = Math.floor(N/2);
+  for(let k=1;k<=N2;k++){
+    const p=(re[k]*re[k]+im[k]*im[k])*norm;
+    const hz=k*fs/N;
+    freqs.push(hz);
+    mags.push(10*Math.log10(p+1e-12));
+  }
+  // peak 3–8 Hz
   let peakHz=NaN, peakDb=-1e9;
-  for(let i=0;i<mags.length;i++){ if(freqs[i]>=3&&freqs[i]<=8&&mags[i]>peakDb){ peakDb=mags[i]; peakHz=freqs[i]; } }
+  for(let i=0;i<mags.length;i++){ if(freqs[i]>=3 && freqs[i]<=8 && mags[i]>peakDb){ peakDb=mags[i]; peakHz=freqs[i]; } }
   peakEl.textContent=isFinite(peakHz)?peakHz.toFixed(2):'–';
   pwrEl.textContent=isFinite(peakDb)?peakDb.toFixed(1):'–';
-  if(psdChart && !pauseEl.checked){ psdChart.data.labels=freqs; psdChart.data.datasets[0].data=mags; psdChart.update('none'); }
+
+  if(!pauseEl.checked){
+    psdChart.data.datasets[0].data = mags.map((m,i)=>({x:freqs[i],y:m}));
+    psdChart.update('none');
+  }
 }
 
+/* ======== streaming ======== */
 function pushSample(x){
   const y=hpf(x);
+  sampleCount++;
+  const tsec=sampleCount/fs;
   ring[head]=y; head=(head+1)&(ring.length-1); filled=Math.min(filled+1,ring.length);
-  logSample(y);
-  if(timeChart && !pauseEl.checked){ const ds=timeChart.data.datasets[0].data; ds.push(y); if(ds.length>600) ds.shift(); timeChart.update('none'); }
+  logRow(y);
+  if(!pauseEl.checked){
+    const ds=timeChart.data.datasets[0].data; ds.push({x:tsec,y}); if(ds.length>600) ds.splice(0,ds.length-600);
+    timeChart.update('none');
+  }
   if(filled===ring.length) analyzePSD();
 }
 
-function onNotify(e){
-  const dv=e.target.value;
-  if(modeEl.value==='int16'){ for(let i=0;i<dv.byteLength;i+=2) pushSample(dv.getInt16(i,true)); }
-  else{ const s=new TextDecoder().decode(dv); termRX(s); for(const line of s.split('\n')){ const n=parseFloat(line.trim()); if(Number.isFinite(n)) pushSample(n); } }
-}
-
-async function connectBLE(){
-  try{
-    device=await navigator.bluetooth.requestDevice({filters:[{services:[UUID_SVC]}]});
-    nameEl.textContent=device.name||'BLE device';
-    device.addEventListener('gattserverdisconnected', onBLEDisconnected);
-    server=await device.gatt.connect();
-    const svc=await server.getPrimaryService(UUID_SVC);
-    chrRX=await svc.getCharacteristic(UUID_RX);
-    chrTX=await svc.getCharacteristic(UUID_TX).catch(()=>null);
-    await chrRX.startNotifications(); chrRX.addEventListener('characteristicvaluechanged', onNotify);
-    resetProcessing(); setStatus('Połączony (BLE)','var(--ok)'); btnConn.disabled=true; btnDis.disabled=false; toast('Połączono BLE','ok',2000);
-  }catch(err){ toast('Błąd BLE: '+(err?.message||err),'err'); }
-}
-function onBLEDisconnected(){ setStatus('Rozłączony','var(--warn)'); btnConn.disabled=false; btnDis.disabled=true; toast('BLE rozłączone','warn',2500); }
-async function disconnectBLE(){ try{ if(chrRX){ await chrRX.stopNotifications().catch(()=>{}); chrRX.removeEventListener('characteristicvaluechanged', onNotify); } if(device?.gatt?.connected) device.gatt.disconnect(); } finally{ onBLEDisconnected(); } }
-
-async function connectSerial(){
-  if(!('serial' in navigator)){ toast('Brak Web Serial w tej przeglądarce','err'); return; }
-  try{
-    serialPort=await navigator.serial.requestPort();
-    await serialPort.open({ baudRate:+baudEl.value });
-    const reader=serialPort.readable.getReader();
-    setStatus('Połączony (Serial)','var(--ok)'); btnDis.disabled=false; toast('Serial połączony','ok',1800);
-    (async()=>{
-      let pending=new Uint8Array(0);
-      for(;;){
-        const {value,done}=await reader.read(); if(done) break;
-        if(!(value instanceof Uint8Array)) continue;
-        if(modeEl.value==='int16'){
-          const bytes=pending.length? concatU8(pending,value): value;
-          const evenLen=bytes.length & ~1;
-          const dv=new DataView(bytes.buffer, bytes.byteOffset, evenLen);
-          for(let i=0;i<dv.byteLength;i+=2) pushSample(dv.getInt16(i,true));
-          pending = bytes.slice(evenLen);
-        }else{
-          const s=new TextDecoder().decode(value); termRX(s);
-          for(const line of s.split('\n')){ const n=parseFloat(line.trim()); if(Number.isFinite(n)) pushSample(n); }
+/* ======== parser pakietów tekstowych ======== */
+/* format: "1, 1, <ts> , <val>, stan baterii: <v>V end" */
+let pktBuf='', lastTs=null, estFs=null;
+function processTextChunk(s){
+  termRX(s);
+  pktBuf += s.replace(/\r/g,'\n');
+  const parts = pktBuf.split(/end\s*/i);
+  pktBuf = parts.pop() ?? '';
+  for(const p of parts){
+    const m = p.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if(m){
+      const ts = Number(m[3]);     // znacznik czasu z urządzenia (ms)
+      const val = Number(m[4]);
+      if(Number.isFinite(ts) && lastTs!=null){
+        const dt = ts - lastTs;    // ms
+        if(dt>0){
+          const curFs = 1000/dt;
+          estFs = estFs==null ? curFs : estFs*0.9 + curFs*0.1;
+          fs = estFs; fsEl.value = Math.max(0.5, Math.round(fs*100)/100);
         }
       }
-    })().catch(()=>{});
-    const encoder=new TextEncoderStream(); encoder.readable.pipeTo(serialPort.writable).catch(()=>{});
-    serialWriter=encoder.writable.getWriter();
-  }catch(err){ toast('Błąd Serial: '+(err?.message||err),'err'); }
+      lastTs = Number.isFinite(ts)? ts : lastTs;
+      if(Number.isFinite(val)) pushSample(val);
+    }
+    const vb = p.match(/stan\s*baterii:\s*([\d.]+)/i);
+    if(vb){ vbEl.textContent=(+vb[1]).toFixed(2)+' V'; }
+  }
 }
-function concatU8(a,b){ const o=new Uint8Array(a.length+b.length); o.set(a,0); o.set(b,a.length); return o; }
-async function disconnectSerial(){ try{ if(serialWriter){ try{await serialWriter.close();}catch{} serialWriter=null; } if(serialPort){ try{await serialPort.close();}catch{} serialPort=null; } }catch{} }
 
+/* ======== Web Serial ======== */
+async function connectSerial(){
+  if(!('serial' in navigator)){ alert('Brak Web Serial w tej przeglądarce'); return; }
+  try{
+    serialPort = await navigator.serial.requestPort();
+    await serialPort.open({ baudRate:+baudEl.value });
+    setStatus('Połączony (Serial)','var(--ok)'); btnDis.disabled=false;
+
+    const reader = serialPort.readable.getReader();
+    (async function readLoop(){
+      for(;;){
+        const {value,done} = await reader.read();
+        if(done) break;
+        if(!(value instanceof Uint8Array)) continue;
+        const s = new TextDecoder().decode(value);
+        processTextChunk(s);
+      }
+    })();
+
+    const enc = new TextEncoderStream();
+    enc.readable.pipeTo(serialPort.writable).catch(()=>{});
+    serialWriter = enc.writable.getWriter();
+  }catch(e){
+    alert('Błąd Serial: '+e);
+  }
+}
+async function disconnectSerial(){
+  try{
+    if(serialWriter){ try{await serialWriter.close();}catch(_){} serialWriter=null; }
+    if(serialPort){ try{await serialPort.close();}catch(_){} serialPort=null; }
+  }finally{
+    setStatus('Rozłączony','var(--warn)'); btnDis.disabled=true;
+  }
+}
+
+/* ======== TX ======== */
 async function sendRaw(s){
-  const data=new TextEncoder().encode(s);
-  if(chrTX){ try{ await chrTX.writeValue(data); termTX(s.replace(/\n/g,'⏎')); return; }catch(e){ toast('BLE TX błąd','err'); } }
-  if(serialWriter){ try{ await serialWriter.write(s); termTX(s.replace(/\n/g,'⏎')); return; }catch(e){ toast('Serial TX błąd','err'); } }
-  toast('Brak kanału TX (BLE/Serial)','err');
+  if(serialWriter){ try{ await serialWriter.write(s); termTX(s.replace(/\n/g,'⏎')); }catch(e){ alert('Serial TX błąd: '+e); } }
+  else alert('Brak kanału TX');
 }
 
-btnConnect.onclick=connectBLE;
-btnSerial.onclick=connectSerial;
-btnDisconnect.onclick=async()=>{ await disconnectBLE(); await disconnectSerial(); setStatus('Rozłączony','var(--warn)'); btnDis.disabled=true; };
-btnClear.onclick=()=>{ if(timeChart){ timeChart.data.datasets[0].data.length=0; timeChart.update('none'); } if(psdChart){ psdChart.data.labels=[]; psdChart.data.datasets[0].data=[]; psdChart.update('none'); } termEl.textContent=''; rowsEl.textContent='0'; tlogEl.textContent='0.0 s'; resetProcessing(); };
-btnSend.onclick = ()=> sendRaw(cmdEl.value);
-btnSendLn.onclick= ()=> sendRaw(cmdEl.value+'\n');
-cmdEl.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); sendRaw(cmdEl.value+'\n'); } });
-btnStart.onclick=()=>{ startLog(); toast('Logowanie rozpoczęte','ok',1800); };
-btnStop.onclick =()=>{ stopLog();  toast('Logowanie zatrzymane','warn',1800); };
-btnDownload.onclick=()=>{ const blob=new Blob([csv.join('\n')+'\n'],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); const ts=new Date().toISOString().replace(/[:.]/g,'-'); a.download=`parkinson_log_${ts}.csv`; a.click(); URL.revokeObjectURL(a.href); };
+/* ======== UI events ======== */
+btnSerial.onclick = connectSerial;
+btnDisconnect.onclick = disconnectSerial;
+btnClear.onclick=()=>{ timeChart.data.datasets[0].data.length=0; timeChart.update('none'); psdChart.data.datasets[0].data.length=0; psdChart.update('none'); termEl.textContent=''; rowsEl.textContent='0'; tlogEl.textContent='0.0 s'; resetProcessing(); };
+btnSend.onclick = ()=>{ sendRaw(cmdEl.value);      cmdEl.value=''; };
+btnSendLn.onclick= ()=>{ sendRaw(cmdEl.value+'\n'); cmdEl.value=''; };
+cmdEl.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); sendRaw(cmdEl.value+'\n'); cmdEl.value=''; } });
+btnStart.onclick=()=>{ sendRaw('t<1>\n'); sendRaw('s<1>\n'); };
+btnStartLog.onclick=()=>{ startLog(); };
+btnStopLog.onclick =()=>{ stopLog();  };
+btnDownload.onclick=()=>{ const blob=new Blob([csv.join('\n')+'\n'],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='parkinson_log.csv'; a.click(); URL.revokeObjectURL(a.href); };
 
+/* ======== init ======== */
 setStatus('Rozłączony','var(--warn)'); resetProcessing();
 </script>
 </body>
