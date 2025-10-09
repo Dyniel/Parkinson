@@ -23,7 +23,9 @@ button.ghost{background:transparent;border:1px dashed rgba(255,255,255,.3);color
 button:disabled{opacity:.6;cursor:not-allowed}
 input[type="number"],input[type="text"],select,textarea{background:#0f1a33;color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:8px 10px}
 textarea{min-height:70px;width:100%;resize:vertical}
-canvas{width:100%;height:320px;display:block}
+canvas{width:100%;display:block}
+#chartTime{height:440px} /* większy */
+#chartPsd{height:300px}
 .kpi{display:flex;gap:12px;flex-wrap:wrap}
 .kpi .item{background:#0f1a33;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 12px;min-width:160px}
 .kpi .v{font-weight:800}
@@ -115,7 +117,7 @@ hr{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
         <span class="tag">Ćwiczenie</span>
         <select id="exercise">
           <option value="spoczynek">spoczynek</option>
-          <option value="ręka_wyciągnięta">ręka_wyciągnięta</option>
+          <option value="reka_wyciagnieta">reka_wyciagnieta</option>
           <option value="palce">palce</option>
           <option value="inne">inne</option>
         </select>
@@ -164,10 +166,10 @@ hr{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
 
 <!-- Libs -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <script>
@@ -198,12 +200,12 @@ function setStatus(txt,color){ statusEl.textContent=txt; dotEl.style.background=
 function termRX(s){ const d=document.createElement('div'); d.className='rx'; d.textContent='<< '+s; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
 function termTX(s){ const d=document.createElement('div'); d.className='tx'; d.textContent='>> '+s; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
 
-/* ======== Ustawienia (localStorage) ======== */
+/* ======== Settings (localStorage) ======== */
 const LS_KEYS=['baud','fs','win','calOff','calGain','patientCode','patientName','patientNote','exercise'];
 for(const k of LS_KEYS){ const el = ({baud:baudEl,fs:fsEl,win:winEl,calOff:offEl,calGain:gainEl,patientCode:patientInput,patientName,patientNote,exercise:exerciseSelect})[k]; const v=localStorage.getItem(k); if(el && v!=null) el.value=v; }
 [baudEl,fsEl,winEl,offEl,gainEl,patientInput,patientName,patientNote,exerciseSelect].forEach(el=> el.addEventListener('change',()=> localStorage.setItem(el.id, el.value)));
 
-/* ======== DSP + Kalibracja ======== */
+/* ======== DSP + Calibration ======== */
 let fs=+fsEl.value, winSec=+winEl.value;
 fsEl.onchange=()=>{ fs=+fsEl.value; resetProcessing(); };
 winEl.onchange=()=>{ winSec=+winEl.value; resetProcessing(); };
@@ -211,13 +213,12 @@ let gain=+gainEl.value, off=+offEl.value;
 gainEl.onchange=()=>{ gain=+gainEl.value; };
 offEl.onchange =()=>{ off=+offEl.value; };
 
+const MAX_SAMPLES=5000; // więcej próbek na wykresie czasu
 let ring=new Float32Array(1), head=0, filled=0, sampleCount=0;
 let artCount=0, lastY=null;
 function resetBuffers(){ const N=2**Math.ceil(Math.log2(Math.max(2,winSec)*Math.max(0.5,fs))); ring=new Float32Array(N); head=0; filled=0; }
 function hpf(x){ const a=Math.exp(-2*Math.PI*0.5/fs); hpf.z=(hpf.z??x)+(1-a)*(x-(hpf.z??x)); return x-hpf.z; }
-function detrend(x){ // krótki high-pass przez odjęcie średniej okna
-  let s=0; for(let i=0;i<x.length;i++) s+=x[i]; const m=s/x.length; const y=new Float32Array(x.length); for(let i=0;i<x.length;i++) y[i]=x[i]-m; return y;
-}
+function detrend(x){ let s=0; for(let i=0;i<x.length;i++) s+=x[i]; const m=s/x.length; const y=new Float32Array(x.length); for(let i=0;i<x.length;i++) y[i]=x[i]-m; return y; }
 function resetProcessing(){ resetBuffers(); hpf.z=undefined; sampleCount=0; artCount=0; artEl.textContent='0'; vbEl.textContent='– V'; }
 
 function fftRadix2(re, im){
@@ -238,16 +239,24 @@ function fftRadix2(re, im){
   }
 }
 
-/* ======== Wykresy ======== */
+/* ======== Charts ======== */
 let timeChart, psdChart;
 window.addEventListener('load', ()=>{
+  const ann = window['chartjs-plugin-annotation']; if(ann) Chart.register(ann);
   timeChart=new Chart($('chartTime'),{
     type:'line',
-    data:{datasets:[{label:'Sygnał',data:[],borderWidth:2,pointRadius:0,tension:0,borderColor:'#4da3ff'},
-                    {label:'Obwiednia RMS 3–8 Hz',data:[],borderWidth:2,pointRadius:0,tension:0,borderDash:[6,4],borderColor:'#7cf'}]},
-    options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
-      plugins:{legend:{display:false}},
-      scales:{x:{type:'linear',title:{display:true,text:'czas [s]'}},y:{title:{display:true,text:'Amplituda'}}}}
+    data:{datasets:[
+      {label:'Sygnał',data:[],borderWidth:2,pointRadius:0,tension:0,borderColor:'#4da3ff'},
+      {label:'Obwiednia RMS 3–8 Hz',data:[],borderWidth:2,pointRadius:0,tension:0,borderDash:[6,4],borderColor:'#7cf'}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
+      plugins:{
+        legend:{display:false},
+        annotation:{annotations:{}}
+      },
+      scales:{x:{type:'linear',title:{display:true,text:'czas [s]'}},y:{title:{display:true,text:'Amplituda'}}}
+    }
   });
   psdChart=new Chart($('chartPsd'),{
     type:'line',
@@ -258,11 +267,40 @@ window.addEventListener('load', ()=>{
   });
 });
 
-/* ======== CSV + Markery ======== */
+/* ======== CSV + Markers ======== */
 let logging=false, csv=[], t0=null;
 function csvHeader(){ return 't_sec,sample,calibrated,vbat_V,marker\n'; }
-function startLog(){ csv=[csvHeader().trimEnd()]; logging=true; t0=performance.now(); btnStartLog.disabled=true; btnStopLog.disabled=false; btnDownload.disabled=true; }
-function stopLog(){ logging=false; btnStartLog.disabled=false; btnStopLog.disabled=true; btnDownload.disabled=false; }
+function nowT(){ return sampleCount/fs; } // bieżący czas osi x (s)
+let eventIdx=0;
+function addVLine(x, color, label){
+  const id='ev_'+(eventIdx++);
+  timeChart.options.plugins.annotation.annotations[id]={
+    type:'line', xMin:x, xMax:x, borderColor:color, borderWidth:2,
+    label:{enabled:true, content:label, position:'start', backgroundColor:color, color:'#000'}
+  };
+  timeChart.update('none');
+}
+function startLog(){
+  csv=[csvHeader().trimEnd()]; logging=true; t0=performance.now();
+  btnStartLog.disabled=true; btnStopLog.disabled=false; btnDownload.disabled=true;
+  addVLine(nowT(), '#1ec28b', 'START');
+}
+async function stopLog(){
+  logging=false; btnStartLog.disabled=false; btnStopLog.disabled=true; btnDownload.disabled=false;
+  addVLine(nowT(), '#ffb020', 'STOP');
+  // auto-upload do chmury po STOP
+  const code=(patientInput.value||'').trim();
+  const csvText = csv.join('\n')+'\n';
+  if(code && csvText.length>12){
+    try{
+      await uploadCsv(code, exerciseSelect.value, patientNote.value?.trim(), csvText);
+      alert('Wysłano do chmury.');
+      loadSessions(code);
+    }catch(e){ alert('Upload błąd: '+(e?.message||e)); }
+  }else{
+    alert('Podaj kod pacjenta przed nagraniem, aby wysłać do chmury.');
+  }
+}
 let pendingMarker='';
 function addMarker(txt){ pendingMarker=txt; if(markersOnEl.checked) termTX('[MARKER] '+txt); }
 function logRow(y, ycal){
@@ -273,16 +311,16 @@ function logRow(y, ycal){
   rowsEl.textContent=csv.length-1; tlogEl.textContent=t+' s';
 }
 
-/* ======== PSD — Welch ======== */
+/* ======== Welch PSD ======== */
 function welchPSD(buffer, fs, segCount=4, overlap=0.5){
   const N = buffer.length;
-  const segLen = 2**Math.floor(Math.log2(Math.floor(N/(1+(segCount-1)*(1-overlap))))); // potęga 2
+  const segLen = 2**Math.floor(Math.log2(Math.floor(N/(1+(segCount-1)*(1-overlap)))));
   if(segLen<16) return {freqs:[], mags:[]};
   const step = Math.floor(segLen*(1-overlap));
   let acc=null, normSeg=0, used=0;
   for(let start=0; start+segLen<=N; start+=step){
     let seg = buffer.slice(start,start+segLen);
-    seg = detrend(seg);
+    let s=0; for(let i=0;i<seg.length;i++) s+=seg[i]; const m=s/seg.length; for(let i=0;i<seg.length;i++) seg[i]-=m;
     const win = new Float32Array(segLen);
     for(let n=0;n<segLen;n++) win[n]=0.5*(1-Math.cos(2*Math.PI*n/(segLen-1)));
     const re=new Float32Array(segLen), im=new Float32Array(segLen);
@@ -294,7 +332,7 @@ function welchPSD(buffer, fs, segCount=4, overlap=0.5){
       const p = (re[k]*re[k]+im[k]*im[k])/(segLen*segLen);
       acc[k]+=p;
     }
-    if(!normSeg) { normSeg = 0; for(let n=0;n<segLen;n++) normSeg += win[n]*win[n]; }
+    if(!normSeg) { for(let n=0;n<segLen;n++) normSeg += win[n]*win[n]; }
     used++;
   }
   if(!used) return {freqs:[],mags:[]};
@@ -302,36 +340,28 @@ function welchPSD(buffer, fs, segCount=4, overlap=0.5){
   const mags=[], freqs=[];
   for(let k=0;k<=N2;k++){
     const hz = k*fs/(2*N2);
-    if(hz>20) break; // limit pasma
+    if(hz>20) break;
     const p = (acc[k]/used)/normSeg;
-    mags.push(10*Math.log10(p+1e-12));
-    freqs.push(hz);
+    mags.push(10*Math.log10(p+1e-12)); freqs.push(hz);
   }
   return {freqs, mags};
 }
 
-/* ======== Metryki 3–8 Hz + obwiednia ======== */
+/* ======== 3–8 Hz envelope ======== */
 let bpState={a1:0,a2:0,b0:0,b1:0,b2:0,x1:0,x2:0,y1:0,y2:0}, rmsState=0;
 function designBandpass(fs, f1=3, f2=8, Q=0.707){
-  const w1=2*Math.PI*f1/fs, w2=2*Math.PI*f2/fs;
-  const wc = Math.sqrt(w1*w2);
-  const alpha = Math.sin(wc)/(2*Q);
-  const cosw = Math.cos(wc);
-  const b0 = alpha, b1 = 0, b2 = -alpha;
-  const a0 = 1 + alpha, a1 = -2*cosw, a2 = 1 - alpha;
+  const w1=2*Math.PI*f1/fs, w2=2*Math.PI*f2/fs, wc=Math.sqrt(w1*w2);
+  const alpha = Math.sin(wc)/(2*Q), cosw = Math.cos(wc);
+  const b0 = alpha, b1 = 0, b2 = -alpha, a0 = 1 + alpha, a1 = -2*cosw, a2 = 1 - alpha;
   bpState.b0=b0/a0; bpState.b1=b1/a0; bpState.b2=b2/a0; bpState.a1=a1/a0; bpState.a2=a2/a0;
 }
-function biquadBp(x){
-  const s=bpState; const y = s.b0*x + s.b1*s.x1 + s.b2*s.x2 - s.a1*s.y1 - s.a2*s.y2;
-  s.x2=s.x1; s.x1=x; s.y2=s.y1; s.y1=y; return y;
-}
+function biquadBp(x){ const s=bpState; const y = s.b0*x + s.b1*s.x1 + s.b2*s.x2 - s.a1*s.y1 - s.a2*s.y2; s.x2=s.x1; s.x1=x; s.y2=s.y1; s.y1=y; return y; }
 function updateRMS(x){ const alpha = Math.exp(-1/(0.25*fs)); rmsState = alpha*rmsState + (1-alpha)*x*x; return Math.sqrt(rmsState); }
 
-/* ======== Analiza i wykresy ======== */
+/* ======== Analysis ======== */
 function analyzeWelch(){
   const {freqs,mags} = welchPSD(ring, fs, 4, 0.5);
   if(!freqs.length) return;
-  // peak i moc pasma 3–8 Hz
   let peakHz=NaN, peakDb=-1e9, bandSum=0, bandN=0;
   for(let i=0;i<mags.length;i++){
     const f=freqs[i], m=mags[i];
@@ -341,40 +371,27 @@ function analyzeWelch(){
   peakEl.textContent = isFinite(peakHz)? peakHz.toFixed(2):'–';
   pwrEl.textContent  = isFinite(peakDb)? peakDb.toFixed(1):'–';
   bandpowEl.textContent = isFinite(bandDb)? bandDb.toFixed(1):'–';
-
-  if(!pauseEl.checked){
-    psdChart.data.datasets[0].data = mags.map((m,i)=>({x:freqs[i],y:m}));
-    psdChart.update('none');
-  }
+  if(!pauseEl.checked){ psdChart.data.datasets[0].data = mags.map((m,i)=>({x:freqs[i],y:m})); psdChart.update('none'); }
 }
 
 function pushSample(raw){
-  // kalibracja
   const x = (raw + off) * gain;
-  // HPF
   const y = hpf(x);
-  // artefakty
   if(lastY!=null && Math.abs(y-lastY) > 10*gain) { artCount++; artEl.textContent=String(artCount); addMarker('artefakt'); }
   lastY = y;
-  // ring
   ring[head]=y; head=(head+1)&(ring.length-1); filled=Math.min(filled+1,ring.length);
-  // obwiednia 3–8 Hz
   const ybp = biquadBp(y); const env = updateRMS(ybp);
-  // log
   sampleCount++; const tsec=sampleCount/fs; logRow(raw, y);
-  // wykres czasu
   if(!pauseEl.checked){
     const ds=timeChart.data.datasets[0].data; ds.push({x:tsec,y});
     const ds2=timeChart.data.datasets[1].data; ds2.push({x:tsec,y:env});
-    if(ds.length>600){ ds.splice(0,ds.length-600); ds2.splice(0,ds2.length-600); }
+    if(ds.length>MAX_SAMPLES){ ds.splice(0,ds.length-MAX_SAMPLES); ds2.splice(0,ds2.length-MAX_SAMPLES); }
     timeChart.update('none');
   }
-  // PSD
   if(filled===ring.length) analyzeWelch();
 }
 
 /* ======== Parser tekstu ======== */
-// format: "..., <ts_ms> , <val>, stan baterii: <v>V end"
 let pktBuf='', lastTs=null, estFs=null;
 function processTextChunk(s){
   termRX(s);
@@ -427,7 +444,7 @@ async function disconnectSerial(){
     if(serialWriter){ try{await serialWriter.close();}catch(_){} serialWriter=null; }
     if(serialPort){ try{await serialPort.close();}catch(_){} serialPort=null; }
   }finally{
-    if(logging && autoLogEl.checked) stopLog();
+    if(logging && autoLogEl.checked) await stopLog();
     setStatus('Rozłączony','var(--warn)'); btnDis.disabled=true;
   }
 }
@@ -439,6 +456,9 @@ async function sendRaw(s){
 }
 
 /* ======== Supabase helpers ======== */
+function slug(s){
+  return (s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9-_]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').toLowerCase();
+}
 async function getOrCreatePatient(code){
   const c=(code||'').trim(); if(!c) throw new Error('Brak kodu pacjenta');
   let { data:pat, error } = await supa.from('patients').select('*').eq('code', c).maybeSingle();
@@ -447,21 +467,15 @@ async function getOrCreatePatient(code){
     const { data, error:insErr } = await supa.from('patients').insert({ code:c, name:patientName.value||null, note:patientNote.value||null }).select().single();
     if(insErr) throw insErr; pat=data;
   }else{
-    // update jeśli zmieniono
     if(pat.name!==patientName.value || pat.note!==patientNote.value){
       await supa.from('patients').update({ name:patientName.value||null, note:patientNote.value||null }).eq('id', pat.id);
     }
   }
   return pat;
 }
-async function deletePatient(code){
-  const c=(code||'').trim(); if(!c) throw new Error('Brak kodu pacjenta');
-  const { data:pat } = await supa.from('patients').select('id').eq('code', c).maybeSingle();
-  if(pat) await supa.from('patients').delete().eq('id', pat.id);
-}
 async function uploadCsv(patientCode, exercise, notes, csvText){
   const pat = await getOrCreatePatient(patientCode);
-  const fname = `p_${patientCode}/${new Date().toISOString().replace(/[:.]/g,'-')}_${exercise||'session'}.csv`;
+  const fname = `p_${slug(patientCode)}/${new Date().toISOString().replace(/[:.]/g,'-')}_${slug(exercise||'session')}.csv`;
   const up = await supa.storage.from(BUCKET).upload(fname, new Blob([csvText],{type:'text/csv'}), { upsert:true, cacheControl:'3600' });
   if(up.error) throw up.error;
   const vbatNum = parseFloat((vbEl.textContent||'').replace(' V',''));
@@ -477,8 +491,7 @@ async function uploadCsv(patientCode, exercise, notes, csvText){
     notes: notes||null
   });
   if(ins.error) throw ins.error;
-  const sig = await supa.storage.from(BUCKET).createSignedUrl(fname, 60*60);
-  return sig.data?.signedUrl || null;
+  return (await supa.storage.from(BUCKET).createSignedUrl(fname, 3600)).data?.signedUrl || null;
 }
 async function loadSessions(code){
   const c=(code||'').trim(); if(!c){ sessTable.innerHTML=''; return; }
@@ -510,57 +523,34 @@ async function zipSessions(code){
   const out = await zip.generateAsync({type:'blob'});
   saveAs(out, `p_${c}_sessions.zip`);
 }
-
-/* ======== PDF Raport ======== */
 async function exportPDF(){
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({unit:'pt', format:'a4'});
+  const { jsPDF } = window.jspdf; const pdf = new jsPDF({unit:'pt', format:'a4'});
   pdf.setFontSize(16); pdf.text('Raport sesji – Parkinson Monitor', 40, 40);
   pdf.setFontSize(11);
   pdf.text(`Pacjent: ${patientInput.value||'-'}`, 40, 60);
   pdf.text(`Ćwiczenie: ${exerciseSelect.value||'-'}`, 40, 75);
   pdf.text(`Peak: ${peakEl.textContent} Hz  |  ${pwrEl.textContent} dB  |  Moc 3–8 Hz: ${bandpowEl.textContent} dB`, 40, 90);
   pdf.text(`Vbat: ${vbEl.textContent||'-'}  |  fs: ${fs.toFixed(2)} Hz  |  Okno PSD: ${winEl.value}s`, 40, 105);
-
-  // obraz wykresów
   const c1 = document.getElementById('chartTime'); const c2 = document.getElementById('chartPsd');
-  const img1 = c1.toDataURL('image/png', 1.0);
-  const img2 = c2.toDataURL('image/png', 1.0);
-  pdf.addImage(img1, 'PNG', 40, 130, 515, 180);
-  pdf.addImage(img2, 'PNG', 40, 330, 515, 180);
-
-  if(patientNote.value){ pdf.text('Notatka:', 40, 530); pdf.setFontSize(10); const lines = pdf.splitTextToSize(patientNote.value, 515); pdf.text(lines, 40, 545); }
+  pdf.addImage(c1.toDataURL('image/png',1.0), 'PNG', 40, 130, 515, 200);
+  pdf.addImage(c2.toDataURL('image/png',1.0), 'PNG', 40, 340, 515, 200);
+  if(patientNote.value){ pdf.text('Notatka:', 40, 555); pdf.setFontSize(10); const lines = pdf.splitTextToSize(patientNote.value, 515); pdf.text(lines, 40, 570); }
   pdf.save(`raport_${(patientInput.value||'patient')}.pdf`);
 }
 
-/* ======== Presety i zdarzenia ======== */
-function startProtocol(){
-  // przykład: ustaw fs w urządzeniu i start streamu
-  sendRaw('t<1>\n'); // Twój protokół
-  sendRaw('s<1>\n');
-  addMarker('protocol_start:'+exerciseSelect.value);
-  if(!logging && autoLogEl.checked) startLog();
-}
-function stopProtocol(){
-  sendRaw('s<0>\n');
-  addMarker('protocol_stop');
-  if(logging && autoLogEl.checked) stopLog();
-}
+/* ======== Presety ======== */
+function startProtocol(){ sendRaw('t<1>\n'); sendRaw('s<1>\n'); addMarker('protocol_start:'+exerciseSelect.value); if(!logging && autoLogEl.checked) startLog(); }
+function stopProtocol(){ sendRaw('s<0>\n'); addMarker('protocol_stop'); if(logging && autoLogEl.checked) stopLog(); }
 
-/* ======== QA sygnał syntetyczny 5 Hz ======== */
+/* ======== QA 5 Hz ======== */
 let qaTimer=null;
-function startQA(){
-  if(qaTimer) return;
-  const f=5, A=1000; let n=0;
-  qaTimer = setInterval(()=>{ const y = A*Math.sin(2*Math.PI*f*(n/fs)); n++; pushSample(y); }, Math.max(1, 1000/fs));
-  addMarker('QA_5Hz_start');
-}
+function startQA(){ if(qaTimer) return; const f=5, A=1000; let n=0; qaTimer=setInterval(()=>{ const y = A*Math.sin(2*Math.PI*f*(n/fs)); n++; pushSample(y); }, Math.max(1,1000/fs)); addMarker('QA_5Hz_start'); }
 function stopQA(){ if(qaTimer){ clearInterval(qaTimer); qaTimer=null; addMarker('QA_5Hz_stop'); }}
 
-/* ======== UI events ======== */
+/* ======== Events ======== */
 btnSerial.onclick = connectSerial;
 btnDisconnect.onclick = disconnectSerial;
-btnClear.onclick=()=>{ timeChart.data.datasets.forEach(d=>d.data.length=0); timeChart.update('none'); psdChart.data.datasets[0].data.length=0; psdChart.update('none'); termEl.textContent=''; rowsEl.textContent='0'; tlogEl.textContent='0.0 s'; resetProcessing(); };
+btnClear.onclick=()=>{ timeChart.data.datasets.forEach(d=>d.data.length=0); timeChart.options.plugins.annotation.annotations={}; timeChart.update('none'); psdChart.data.datasets[0].data.length=0; psdChart.update('none'); termEl.textContent=''; rowsEl.textContent='0'; tlogEl.textContent='0.0 s'; resetProcessing(); };
 btnSend.onclick = ()=>{ sendRaw(cmdEl.value);      cmdEl.value=''; };
 btnSendLn.onclick= ()=>{ sendRaw(cmdEl.value+'\n'); cmdEl.value=''; };
 btnStartLog.onclick=()=> startLog();
@@ -570,11 +560,11 @@ btnDownloadLocal.onclick=()=>{ const blob=new Blob([csv.join('\n')+'\n'],{type:'
 btnUpload.onclick = async ()=>{
   const code = patientInput.value?.trim(); if(!code){ alert('Podaj kod pacjenta'); return; }
   const csvText = csv.join('\n')+'\n'; if(csvText.length < 12){ alert('Brak danych do wysłania'); return; }
-  try{ const url = await uploadCsv(code, exerciseSelect.value, patientNote.value?.trim(), csvText); alert(url ? ('Wysłano do chmury:\n'+url) : 'Wysłano.'); loadSessions(code); }
+  try{ await uploadCsv(code, exerciseSelect.value, patientNote.value?.trim(), csvText); alert('Wysłano do chmury.'); loadSessions(code); }
   catch(e){ alert('Upload błąd: '+(e?.message||e)); }
 };
 btnPatSave.onclick = async ()=>{ try{ await getOrCreatePatient(patientInput.value); alert('Zapisano.'); }catch(e){ alert(e.message); } };
-btnPatDelete.onclick = async ()=>{ if(confirm('Usunąć pacjenta i jego rekordy?')){ try{ await deletePatient(patientInput.value); alert('Usunięto.'); sessTable.innerHTML=''; }catch(e){ alert(e.message); } } };
+btnPatDelete.onclick = async ()=>{ if(confirm('Usunąć pacjenta i jego rekordy?')){ try{ await supa.from('patients').delete().eq('code', (patientInput.value||'').trim()); alert('Usunięto.'); sessTable.innerHTML=''; }catch(e){ alert(e.message); } } };
 btnLoadSess.onclick = ()=> loadSessions(patientInput.value);
 btnZip.onclick = ()=> zipSessions(patientInput.value);
 btnPdf.onclick = ()=> exportPDF();
