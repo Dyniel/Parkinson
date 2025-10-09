@@ -3,18 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Parkinson Monitor — Serial</title>
+<title>Parkinson Monitor — Serial + Chmura</title>
 <link rel="icon" href="data:,">
 <style>
-:root{--bg:#0b1020;--card:#11182b;--muted:#9bb0cf;--text:#e8eefc;--acc:#4da3ff;--acc2:#7cf;--ok:#1ec28b;--warn:#ffb020;--err:#ff5d5d;--br:14px}
-*{box-sizing:border-box}
-body{margin:0;background:linear-gradient(180deg,var(--bg),#070b17);color:var(--text);font:500 15px/1.5 ui-sans-serif,system-ui,Segoe UI,Arial}
-.container{max-width:1100px;margin:28px auto;padding:0 16px}
+:root{--bg:#0b1020;--card:#11182b;--muted:#9bb0cf;--text:#e8eefc;--acc:#4da3ff;--acc2:#7cf;--ok:#1ec28b;--warn:#ffb020;--err:#ff5d5d}
+*{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,var(--bg),#070b17);color:var(--text);font:500 15px/1.5 ui-sans-serif,system-ui,Segoe UI,Arial}
+.container{max-width:1200px;margin:28px auto;padding:0 16px}
 .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .pill{display:flex;gap:8px;align-items:center;background:#0f1a33;color:var(--muted);padding:4px 10px;border-radius:999px}
 .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
-.card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px}
-.card .head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:14px}
+.card .head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.1)}
 .card .body{padding:14px}
 .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 button,input,select,textarea{font:inherit}
@@ -32,54 +31,49 @@ canvas{width:100%;height:320px;display:block}
 .terminal .rx{color:#9effa6}.terminal .tx{color:#9dbaff}
 .inline{display:flex;gap:10px}.inline input{flex:1}
 .row{display:grid;gap:14px}
-@media(min-width:960px){.row{grid-template-columns:1.35fr 1fr}}
+@media(min-width:1024px){.row{grid-template-columns:1.35fr 1fr}}
 hr{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
 .table{width:100%;border-collapse:collapse}
 .table th,.table td{border-bottom:1px solid rgba(255,255,255,.12);padding:8px 6px;text-align:left;font-size:14px}
 .table th{color:var(--muted);font-weight:700}
-.bad{color:var(--err)}
-.ok{color:var(--ok)}
+.bad{color:var(--err)} .ok{color:var(--ok)}
+.tag{padding:2px 8px;border:1px solid rgba(255,255,255,.2);border-radius:999px}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <div><b>Parkinson Monitor — Serial</b></div>
+    <div><b>Parkinson Monitor — Serial + Chmura</b></div>
     <div class="pill"><div class="dot" id="dot"></div><span id="status">Rozłączony</span></div>
   </div>
 
-  <!-- Panel pacjenta i chmury -->
+  <!-- Panel pacjent + CRUD + filtr -->
   <div class="card" style="margin-bottom:14px">
     <div class="head">
-      <div><b>Pacjent i chmura</b></div>
       <div class="controls">
+        <span class="tag">Pacjent</span>
+        <label>Kod <input id="patientCode" type="text" placeholder="np. P001" style="width:110px"></label>
+        <label>Nazwa <input id="patientName" type="text" placeholder="opcjonalnie" style="width:180px"></label>
+        <button id="btnPatSave" class="secondary">Zapisz/utwórz</button>
+        <button id="btnPatDelete" class="ghost">Usuń pacjenta</button>
+      </div>
+      <div class="controls">
+        <span class="tag">Filtr</span>
+        <label>od <input id="fFrom" type="date"></label>
+        <label>do <input id="fTo" type="date"></label>
         <button id="btnLoadSess" class="secondary">Odśwież sesje</button>
+        <button id="btnZip" class="ghost">ZIP sesji</button>
+        <button id="btnPdf" class="ghost">PDF raport</button>
       </div>
     </div>
     <div class="body">
-      <div class="controls" style="gap:12px">
-        <label>Kod pacjenta <input id="patientCode" type="text" placeholder="np. P001"></label>
-        <label>Ćwiczenie
-          <select id="exercise">
-            <option value="spoczynek">spoczynek</option>
-            <option value="ręka_wyciągnięta">ręka_wyciągnięta</option>
-            <option value="palce">palce</option>
-            <option value="inne">inne</option>
-          </select>
-        </label>
-        <button id="btnUpload" class="secondary">Wyślij CSV do chmury</button>
-        <button id="btnDownloadLocal" class="ghost">Pobierz CSV lokalnie</button>
-      </div>
-      <div style="margin-top:10px">
-        <label style="display:block;margin-bottom:6px">Notatki
-          <textarea id="notes" placeholder="krótki opis sesji, uwagi kliniczne bez danych wrażliwych"></textarea>
-        </label>
-      </div>
-      <hr>
+      <label style="display:block;margin-bottom:6px">Notatka pacjenta
+        <textarea id="patientNote" placeholder="uwagi dot. pacjenta (bez danych wrażliwych)"></textarea>
+      </label>
       <div>
-        <b>Ostatnie sesje</b>
+        <b>Sesje</b>
         <table class="table" id="sessTable">
-          <thead><tr><th>Data</th><th>Ćwiczenie</th><th>Peak [Hz]</th><th>Peak [dB]</th><th>Vbat [V]</th><th>CSV</th></tr></thead>
+          <thead><tr><th>Data</th><th>Ćwiczenie</th><th>Peak [Hz]</th><th>Peak [dB]</th><th>Vbat</th><th>CSV</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -91,12 +85,16 @@ hr{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
       <div class="controls">
         <button id="btnSerial">Połącz Serial</button>
         <button id="btnDisconnect" class="secondary" disabled>Rozłącz</button>
-        <label>baud <input id="baud" type="number" value="115200" min="1200" max="921600" step="1200"></label>
-        <label>fs [Hz] <input id="fs" type="number" value="2" min="0.5" max="2000" step="0.1"></label>
-        <label>Okno PSD [s] <input id="win" type="number" value="4" min="1" max="30" step="1"></label>
+        <label>baud <input id="baud" type="number" value="115200" min="1200" max="921600" step="1200" style="width:110px"></label>
+        <label>fs [Hz] <input id="fs" type="number" value="2" min="0.5" max="2000" step="0.1" style="width:90px"></label>
+        <label>Okno PSD [s] <input id="win" type="number" value="4" min="1" max="30" step="1" style="width:90px"></label>
+        <label>Offset <input id="calOff" type="number" value="0" step="0.01" style="width:90px"></label>
+        <label>Gain <input id="calGain" type="number" value="1" step="0.01" style="width:90px"></label>
       </div>
       <div class="controls">
-        <label><input type="checkbox" id="pause"> Pauza wykresów</label>
+        <label><input type="checkbox" id="pause"> Pauza</label>
+        <label><input type="checkbox" id="markersOn" checked> Markery</label>
+        <label><input type="checkbox" id="autoLog" checked> Autolog</label>
         <button id="btnClear" class="secondary">Czyść</button>
       </div>
     </div>
@@ -105,15 +103,32 @@ hr{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
       <div class="kpi">
         <div class="item">Tremor peak 3–8 Hz<br><span class="v" id="peak">– Hz</span></div>
         <div class="item">Moc piku<br><span class="v" id="pwr">– dB</span></div>
+        <div class="item">Moc 3–8 Hz<br><span class="v" id="bandpow">– dB</span></div>
+        <div class="item">Artefakty<br><span class="v" id="artCount">0</span></div>
         <div class="item">Próbek<br><span class="v" id="rows">0</span></div>
         <div class="item">Czas logu<br><span class="v" id="tlog">0.0 s</span></div>
         <div class="item">Bateria<br><span class="v" id="vbatt">– V</span></div>
       </div>
 
       <hr>
+      <div class="controls">
+        <span class="tag">Ćwiczenie</span>
+        <select id="exercise">
+          <option value="spoczynek">spoczynek</option>
+          <option value="ręka_wyciągnięta">ręka_wyciągnięta</option>
+          <option value="palce">palce</option>
+          <option value="inne">inne</option>
+        </select>
+        <button id="btnPresetStart" class="secondary">Start protokołu</button>
+        <button id="btnPresetStop" class="secondary">Stop protokołu</button>
+        <button id="btnMarker" class="ghost">Dodaj znacznik</button>
+        <button id="btnQA" class="ghost">Test QA 5 Hz</button>
+      </div>
+
+      <hr>
       <div class="row">
         <div class="card"><div class="head"><b>Sygnał w czasie</b></div><div class="body"><canvas id="chartTime"></canvas></div></div>
-        <div class="card"><div class="head"><b>Widmo / PSD</b></div><div class="body"><canvas id="chartPsd"></canvas></div></div>
+        <div class="card"><div class="head"><b>Widmo / PSD (Welch)</b></div><div class="body"><canvas id="chartPsd"></canvas></div></div>
       </div>
 
       <hr>
@@ -124,7 +139,6 @@ hr{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
             <input id="cmd" type="text" placeholder="komenda… (Enter = +\\n)">
             <button id="btnSend"   class="secondary">Wyślij</button>
             <button id="btnSendLn" class="secondary">Wyślij + \\n</button>
-            <button id="btnStart"  class="secondary">Start (t&lt;1&gt;, s&lt;1&gt;)</button>
           </div>
           <div class="terminal" id="term"></div>
         </div>
@@ -132,37 +146,51 @@ hr{border:none;border-top:1px solid rgba(255,255,255,.08);margin:12px 0}
 
       <hr>
       <div class="card">
-        <div class="head"><b>Rejestracja do CSV</b></div>
+        <div class="head"><b>Rejestracja</b></div>
         <div class="body">
           <div class="controls">
             <button id="btnStartLog">Start</button>
             <button id="btnStopLog" class="secondary" disabled>Stop</button>
             <button id="btnDownload" class="secondary" disabled>Pobierz CSV</button>
+            <button id="btnUpload" class="secondary">Wyślij do chmury</button>
+            <button id="btnDownloadLocal" class="ghost">Pobierz lokalnie</button>
           </div>
         </div>
       </div>
+
     </div>
   </div>
 </div>
 
+<!-- Libs -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
 <script>
-/* ======== Supabase config (od Ciebie) ======== */
+/* ======== Supabase ======== */
 const SUPA_URL  = 'https://umjcqwkyxgdtbmfoyxzt.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtamNxd2t5eGdkdGJtZm95eHp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5NTg0NzgsImV4cCI6MjA3NTUzNDQ3OH0.VnVOj4HNcG4uvMzK0wOJ7aagueAJ2nYN7LMiQOty-2U';
-const BUCKET = 'logs'; // utwórz w Supabase Storage
+const BUCKET = 'logs';
+const supa = supabase.createClient(SUPA_URL, SUPA_ANON);
 
 /* ======== UI ======== */
 const $=id=>document.getElementById(id);
 const statusEl=$('status'), dotEl=$('dot'), termEl=$('term'), vbEl=$('vbatt');
-const rowsEl=$('rows'), tlogEl=$('tlog'), peakEl=$('peak'), pwrEl=$('pwr');
+const rowsEl=$('rows'), tlogEl=$('tlog'), peakEl=$('peak'), pwrEl=$('pwr'), bandpowEl=$('bandpow'), artEl=$('artCount');
 const btnSerial=$('btnSerial'), btnDis=$('btnDisconnect'), btnClear=$('btnClear');
-const btnSend=$('btnSend'), btnSendLn=$('btnSendLn'), btnStartBtn=$('btnStart'), cmdEl=$('cmd');
-const fsEl=$('fs'), winEl=$('win'), pauseEl=$('pause'), baudEl=$('baud');
+const btnSend=$('btnSend'), btnSendLn=$('btnSendLn'), cmdEl=$('cmd');
+const fsEl=$('fs'), winEl=$('win'), pauseEl=$('pause'), baudEl=$('baud'), gainEl=$('calGain'), offEl=$('calOff');
 const btnStartLog=$('btnStartLog'), btnStopLog=$('btnStopLog'), btnDownload=$('btnDownload');
-const btnUpload=$('btnUpload'), btnDownloadLocal=$('btnDownloadLocal'), btnLoadSess=$('btnLoadSess');
-const patientInput=$('patientCode'), exerciseSelect=$('exercise'), notesInput=$('notes');
+const patientInput=$('patientCode'), patientName=$('patientName'), patientNote=$('patientNote');
+const btnPatSave=$('btnPatSave'), btnPatDelete=$('btnPatDelete'), btnLoadSess=$('btnLoadSess'), btnZip=$('btnZip'), btnPdf=$('btnPdf');
+const btnUpload=$('btnUpload'), btnDownloadLocal=$('btnDownloadLocal');
+const exerciseSelect=$('exercise'), btnPresetStart=$('btnPresetStart'), btnPresetStop=$('btnPresetStop'), btnMarker=$('btnMarker'), btnQA=$('btnQA');
+const markersOnEl=$('markersOn'), autoLogEl=$('autoLog');
+const fFrom=$('fFrom'), fTo=$('fTo');
 const sessTable=$('sessTable').querySelector('tbody');
 
 let serialPort=null, serialWriter=null;
@@ -170,17 +198,28 @@ function setStatus(txt,color){ statusEl.textContent=txt; dotEl.style.background=
 function termRX(s){ const d=document.createElement('div'); d.className='rx'; d.textContent='<< '+s; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
 function termTX(s){ const d=document.createElement('div'); d.className='tx'; d.textContent='>> '+s; termEl.appendChild(d); termEl.scrollTop=termEl.scrollHeight; }
 
-/* ======== DSP ======== */
+/* ======== Ustawienia (localStorage) ======== */
+const LS_KEYS=['baud','fs','win','calOff','calGain','patientCode','patientName','patientNote','exercise'];
+for(const k of LS_KEYS){ const el = ({baud:baudEl,fs:fsEl,win:winEl,calOff:offEl,calGain:gainEl,patientCode:patientInput,patientName,patientNote,exercise:exerciseSelect})[k]; const v=localStorage.getItem(k); if(el && v!=null) el.value=v; }
+[baudEl,fsEl,winEl,offEl,gainEl,patientInput,patientName,patientNote,exerciseSelect].forEach(el=> el.addEventListener('change',()=> localStorage.setItem(el.id, el.value)));
+
+/* ======== DSP + Kalibracja ======== */
 let fs=+fsEl.value, winSec=+winEl.value;
 fsEl.onchange=()=>{ fs=+fsEl.value; resetProcessing(); };
 winEl.onchange=()=>{ winSec=+winEl.value; resetProcessing(); };
+let gain=+gainEl.value, off=+offEl.value;
+gainEl.onchange=()=>{ gain=+gainEl.value; };
+offEl.onchange =()=>{ off=+offEl.value; };
 
 let ring=new Float32Array(1), head=0, filled=0, sampleCount=0;
+let artCount=0, lastY=null;
 function resetBuffers(){ const N=2**Math.ceil(Math.log2(Math.max(2,winSec)*Math.max(0.5,fs))); ring=new Float32Array(N); head=0; filled=0; }
 function hpf(x){ const a=Math.exp(-2*Math.PI*0.5/fs); hpf.z=(hpf.z??x)+(1-a)*(x-(hpf.z??x)); return x-hpf.z; }
-function resetProcessing(){ resetBuffers(); hpf.z=undefined; sampleCount=0; vbEl.textContent='– V'; }
+function detrend(x){ // krótki high-pass przez odjęcie średniej okna
+  let s=0; for(let i=0;i<x.length;i++) s+=x[i]; const m=s/x.length; const y=new Float32Array(x.length); for(let i=0;i<x.length;i++) y[i]=x[i]-m; return y;
+}
+function resetProcessing(){ resetBuffers(); hpf.z=undefined; sampleCount=0; artCount=0; artEl.textContent='0'; vbEl.textContent='– V'; }
 
-/* ======== FFT (radix-2) ======== */
 function fftRadix2(re, im){
   const n = re.length; let j=0;
   for(let i=1;i<n-1;i++){ let bit=n>>1; for(; j & bit; bit>>=1) j&=~bit; j|=bit; if(i<j){ [re[i],re[j]]=[re[j],re[i]]; [im[i],im[j]]=[im[j],im[i]]; } }
@@ -204,56 +243,138 @@ let timeChart, psdChart;
 window.addEventListener('load', ()=>{
   timeChart=new Chart($('chartTime'),{
     type:'line',
-    data:{datasets:[{label:'Sygnał',data:[],borderWidth:2,pointRadius:0,tension:0,borderColor:'#4da3ff'}]},
+    data:{datasets:[{label:'Sygnał',data:[],borderWidth:2,pointRadius:0,tension:0,borderColor:'#4da3ff'},
+                    {label:'Obwiednia RMS 3–8 Hz',data:[],borderWidth:2,pointRadius:0,tension:0,borderDash:[6,4],borderColor:'#7cf'}]},
     options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
       plugins:{legend:{display:false}},
       scales:{x:{type:'linear',title:{display:true,text:'czas [s]'}},y:{title:{display:true,text:'Amplituda'}}}}
   });
   psdChart=new Chart($('chartPsd'),{
     type:'line',
-    data:{datasets:[{label:'PSD',data:[],borderWidth:2,pointRadius:0,tension:0,borderColor:'#7cf'}]},
+    data:{datasets:[{label:'PSD (Welch)',data:[],borderWidth:2,pointRadius:0,tension:0,borderColor:'#7cf'}]},
     options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
       plugins:{legend:{display:false}},
-      scales:{x:{title:{display:true,text:'Hz'}},y:{title:{display:true,text:'dB'}}}}
+      scales:{x:{title:{display:true,text:'Hz'},suggestedMin:0,suggestedMax:20},y:{title:{display:true,text:'dB'}}}}
   });
 });
 
-/* ======== CSV ======== */
+/* ======== CSV + Markery ======== */
 let logging=false, csv=[], t0=null;
-function csvHeader(){ return 't_sec,sample,vbat_V\n'; }
+function csvHeader(){ return 't_sec,sample,calibrated,vbat_V,marker\n'; }
 function startLog(){ csv=[csvHeader().trimEnd()]; logging=true; t0=performance.now(); btnStartLog.disabled=true; btnStopLog.disabled=false; btnDownload.disabled=true; }
 function stopLog(){ logging=false; btnStartLog.disabled=false; btnStopLog.disabled=true; btnDownload.disabled=false; }
-function logRow(y){ if(!logging) return; const t=((performance.now()-t0)/1000).toFixed(6); csv.push(`${t},${y},${(vbEl.textContent||'').replace(' V','')}`); rowsEl.textContent=csv.length-1; tlogEl.textContent=t+' s'; }
-
-/* ======== PSD ======== */
-function analyzePSD(){
-  const N = ring.length, re = new Float32Array(N), im = new Float32Array(N);
-  const start=head; for(let n=0;n<N;n++){ const idx=(start+n)&(N-1); re[n]=ring[idx]*0.5*(1-Math.cos(2*Math.PI*n/(N-1))); im[n]=0; }
-  fftRadix2(re,im);
-  const mags=[], freqs=[], norm=1/(N*N), N2=Math.floor(N/2);
-  for(let k=1;k<=N2;k++){ const p=(re[k]*re[k]+im[k]*im[k])*norm; const hz=k*fs/N; freqs.push(hz); mags.push(10*Math.log10(p+1e-12)); }
-  let peakHz=NaN, peakDb=-1e9;
-  for(let i=0;i<mags.length;i++){ if(freqs[i]>=3 && freqs[i]<=8 && mags[i]>peakDb){ peakDb=mags[i]; peakHz=freqs[i]; } }
-  peakEl.textContent=isFinite(peakHz)?peakHz.toFixed(2):'–';
-  pwrEl.textContent=isFinite(peakDb)?peakDb.toFixed(1):'–';
-  if(!pauseEl.checked){ psdChart.data.datasets[0].data = mags.map((m,i)=>({x:freqs[i],y:m})); psdChart.update('none'); }
+let pendingMarker='';
+function addMarker(txt){ pendingMarker=txt; if(markersOnEl.checked) termTX('[MARKER] '+txt); }
+function logRow(y, ycal){
+  if(!logging) return;
+  const t=((performance.now()-t0)/1000).toFixed(6);
+  const mark = pendingMarker; pendingMarker='';
+  csv.push(`${t},${y},${ycal},${(vbEl.textContent||'').replace(' V','')},${mark}`);
+  rowsEl.textContent=csv.length-1; tlogEl.textContent=t+' s';
 }
 
-/* ======== streaming ======== */
-function pushSample(x){
-  const y=hpf(x);
-  sampleCount++; const tsec=sampleCount/fs;
-  ring[head]=y; head=(head+1)&(ring.length-1); filled=Math.min(filled+1,ring.length);
-  logRow(y);
+/* ======== PSD — Welch ======== */
+function welchPSD(buffer, fs, segCount=4, overlap=0.5){
+  const N = buffer.length;
+  const segLen = 2**Math.floor(Math.log2(Math.floor(N/(1+(segCount-1)*(1-overlap))))); // potęga 2
+  if(segLen<16) return {freqs:[], mags:[]};
+  const step = Math.floor(segLen*(1-overlap));
+  let acc=null, normSeg=0, used=0;
+  for(let start=0; start+segLen<=N; start+=step){
+    let seg = buffer.slice(start,start+segLen);
+    seg = detrend(seg);
+    const win = new Float32Array(segLen);
+    for(let n=0;n<segLen;n++) win[n]=0.5*(1-Math.cos(2*Math.PI*n/(segLen-1)));
+    const re=new Float32Array(segLen), im=new Float32Array(segLen);
+    for(let n=0;n<segLen;n++) re[n] = seg[n]*win[n];
+    fftRadix2(re,im);
+    const N2 = Math.floor(segLen/2);
+    if(acc==null) acc=new Float32Array(N2+1);
+    for(let k=0;k<=N2;k++){
+      const p = (re[k]*re[k]+im[k]*im[k])/(segLen*segLen);
+      acc[k]+=p;
+    }
+    if(!normSeg) { normSeg = 0; for(let n=0;n<segLen;n++) normSeg += win[n]*win[n]; }
+    used++;
+  }
+  if(!used) return {freqs:[],mags:[]};
+  const N2 = acc.length-1;
+  const mags=[], freqs=[];
+  for(let k=0;k<=N2;k++){
+    const hz = k*fs/(2*N2);
+    if(hz>20) break; // limit pasma
+    const p = (acc[k]/used)/normSeg;
+    mags.push(10*Math.log10(p+1e-12));
+    freqs.push(hz);
+  }
+  return {freqs, mags};
+}
+
+/* ======== Metryki 3–8 Hz + obwiednia ======== */
+let bpState={a1:0,a2:0,b0:0,b1:0,b2:0,x1:0,x2:0,y1:0,y2:0}, rmsState=0;
+function designBandpass(fs, f1=3, f2=8, Q=0.707){
+  const w1=2*Math.PI*f1/fs, w2=2*Math.PI*f2/fs;
+  const wc = Math.sqrt(w1*w2);
+  const alpha = Math.sin(wc)/(2*Q);
+  const cosw = Math.cos(wc);
+  const b0 = alpha, b1 = 0, b2 = -alpha;
+  const a0 = 1 + alpha, a1 = -2*cosw, a2 = 1 - alpha;
+  bpState.b0=b0/a0; bpState.b1=b1/a0; bpState.b2=b2/a0; bpState.a1=a1/a0; bpState.a2=a2/a0;
+}
+function biquadBp(x){
+  const s=bpState; const y = s.b0*x + s.b1*s.x1 + s.b2*s.x2 - s.a1*s.y1 - s.a2*s.y2;
+  s.x2=s.x1; s.x1=x; s.y2=s.y1; s.y1=y; return y;
+}
+function updateRMS(x){ const alpha = Math.exp(-1/(0.25*fs)); rmsState = alpha*rmsState + (1-alpha)*x*x; return Math.sqrt(rmsState); }
+
+/* ======== Analiza i wykresy ======== */
+function analyzeWelch(){
+  const {freqs,mags} = welchPSD(ring, fs, 4, 0.5);
+  if(!freqs.length) return;
+  // peak i moc pasma 3–8 Hz
+  let peakHz=NaN, peakDb=-1e9, bandSum=0, bandN=0;
+  for(let i=0;i<mags.length;i++){
+    const f=freqs[i], m=mags[i];
+    if(f>=3 && f<=8){ bandSum+=Math.pow(10,m/10); bandN++; if(m>peakDb){ peakDb=m; peakHz=f; } }
+  }
+  const bandDb = bandN? 10*Math.log10(bandSum/bandN) : NaN;
+  peakEl.textContent = isFinite(peakHz)? peakHz.toFixed(2):'–';
+  pwrEl.textContent  = isFinite(peakDb)? peakDb.toFixed(1):'–';
+  bandpowEl.textContent = isFinite(bandDb)? bandDb.toFixed(1):'–';
+
   if(!pauseEl.checked){
-    const ds=timeChart.data.datasets[0].data; ds.push({x:tsec,y}); if(ds.length>600) ds.splice(0,ds.length-600);
+    psdChart.data.datasets[0].data = mags.map((m,i)=>({x:freqs[i],y:m}));
+    psdChart.update('none');
+  }
+}
+
+function pushSample(raw){
+  // kalibracja
+  const x = (raw + off) * gain;
+  // HPF
+  const y = hpf(x);
+  // artefakty
+  if(lastY!=null && Math.abs(y-lastY) > 10*gain) { artCount++; artEl.textContent=String(artCount); addMarker('artefakt'); }
+  lastY = y;
+  // ring
+  ring[head]=y; head=(head+1)&(ring.length-1); filled=Math.min(filled+1,ring.length);
+  // obwiednia 3–8 Hz
+  const ybp = biquadBp(y); const env = updateRMS(ybp);
+  // log
+  sampleCount++; const tsec=sampleCount/fs; logRow(raw, y);
+  // wykres czasu
+  if(!pauseEl.checked){
+    const ds=timeChart.data.datasets[0].data; ds.push({x:tsec,y});
+    const ds2=timeChart.data.datasets[1].data; ds2.push({x:tsec,y:env});
+    if(ds.length>600){ ds.splice(0,ds.length-600); ds2.splice(0,ds2.length-600); }
     timeChart.update('none');
   }
-  if(filled===ring.length) analyzePSD();
+  // PSD
+  if(filled===ring.length) analyzeWelch();
 }
 
-/* ======== parser pakietów tekstowych ======== */
-/* format: "1, 1, <ts> , <val>, stan baterii: <v>V end" */
+/* ======== Parser tekstu ======== */
+// format: "..., <ts_ms> , <val>, stan baterii: <v>V end"
 let pktBuf='', lastTs=null, estFs=null;
 function processTextChunk(s){
   termRX(s);
@@ -261,11 +382,14 @@ function processTextChunk(s){
   const parts = pktBuf.split(/end\s*/i);
   pktBuf = parts.pop() ?? '';
   for(const p of parts){
-    const m = p.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    const m = p.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(-?\d+)/);
     if(m){
       const ts = Number(m[3]); const val = Number(m[4]);
       if(Number.isFinite(ts) && lastTs!=null){
-        const dt = ts - lastTs; if(dt>0){ const curFs = 1000/dt; estFs = estFs==null ? curFs : estFs*0.9 + curFs*0.1; fs = estFs; fsEl.value = Math.max(0.5, Math.round(fs*100)/100); resetBuffers(); }
+        const dt = ts - lastTs; if(dt>0&&dt<2000){
+          const curFs = 1000/dt; estFs = estFs==null ? curFs : 0.9*estFs + 0.1*curFs;
+          if(Math.abs(estFs - fs) > 0.05){ fs = estFs; fsEl.value = Math.round(fs*100)/100; resetBuffers(); designBandpass(fs); }
+        }
       }
       lastTs = Number.isFinite(ts)? ts : lastTs;
       if(Number.isFinite(val)) pushSample(val);
@@ -281,8 +405,8 @@ async function connectSerial(){
   try{
     serialPort = await navigator.serial.requestPort();
     await serialPort.open({ baudRate:+baudEl.value });
-    setStatus('Połączony (Serial)','var(--ok)'); btnDis.disabled=false;
-
+    setStatus('Połączony','var(--ok)'); btnDis.disabled=false;
+    if(autoLogEl.checked) startLog();
     const reader = serialPort.readable.getReader();
     (async function readLoop(){
       for(;;){
@@ -293,19 +417,19 @@ async function connectSerial(){
         processTextChunk(s);
       }
     })();
-
     const enc = new TextEncoderStream();
     enc.readable.pipeTo(serialPort.writable).catch(()=>{});
     serialWriter = enc.writable.getWriter();
-  }catch(e){
-    alert('Błąd Serial: '+e);
-  }
+  }catch(e){ alert('Błąd Serial: '+e); }
 }
 async function disconnectSerial(){
   try{
     if(serialWriter){ try{await serialWriter.close();}catch(_){} serialWriter=null; }
     if(serialPort){ try{await serialPort.close();}catch(_){} serialPort=null; }
-  }finally{ setStatus('Rozłączony','var(--warn)'); btnDis.disabled=true; }
+  }finally{
+    if(logging && autoLogEl.checked) stopLog();
+    setStatus('Rozłączony','var(--warn)'); btnDis.disabled=true;
+  }
 }
 
 /* ======== TX ======== */
@@ -315,98 +439,152 @@ async function sendRaw(s){
 }
 
 /* ======== Supabase helpers ======== */
-const supa = supabase.createClient(SUPA_URL, SUPA_ANON);
-
 async function getOrCreatePatient(code){
-  const c = (code||'').trim();
-  if(!c) throw new Error('Brak kodu pacjenta');
+  const c=(code||'').trim(); if(!c) throw new Error('Brak kodu pacjenta');
   let { data:pat, error } = await supa.from('patients').select('*').eq('code', c).maybeSingle();
   if(error && error.code!=='PGRST116') throw error;
   if(!pat){
-    const { data, error:insErr } = await supa.from('patients').insert({ code:c }).select().single();
-    if(insErr) throw insErr;
-    pat = data;
+    const { data, error:insErr } = await supa.from('patients').insert({ code:c, name:patientName.value||null, note:patientNote.value||null }).select().single();
+    if(insErr) throw insErr; pat=data;
+  }else{
+    // update jeśli zmieniono
+    if(pat.name!==patientName.value || pat.note!==patientNote.value){
+      await supa.from('patients').update({ name:patientName.value||null, note:patientNote.value||null }).eq('id', pat.id);
+    }
   }
   return pat;
 }
-
+async function deletePatient(code){
+  const c=(code||'').trim(); if(!c) throw new Error('Brak kodu pacjenta');
+  const { data:pat } = await supa.from('patients').select('id').eq('code', c).maybeSingle();
+  if(pat) await supa.from('patients').delete().eq('id', pat.id);
+}
 async function uploadCsv(patientCode, exercise, notes, csvText){
   const pat = await getOrCreatePatient(patientCode);
   const fname = `p_${patientCode}/${new Date().toISOString().replace(/[:.]/g,'-')}_${exercise||'session'}.csv`;
-  const { error:upErr } = await supa.storage.from(BUCKET).upload(
-    fname,
-    new Blob([csvText],{type:'text/csv'}),
-    { upsert:true, cacheControl:'3600', contentType:'text/csv' }
-  );
-  if(upErr) throw upErr;
-
+  const up = await supa.storage.from(BUCKET).upload(fname, new Blob([csvText],{type:'text/csv'}), { upsert:true, cacheControl:'3600' });
+  if(up.error) throw up.error;
   const vbatNum = parseFloat((vbEl.textContent||'').replace(' V',''));
   const peakHzNum = parseFloat(peakEl.textContent);
   const peakDbNum = parseFloat(pwrEl.textContent);
-
-  const { error:dbErr } = await supa.from('sessions').insert({
-    patient_id: pat.id,
-    exercise: exercise||null,
-    fs: fs||null,
-    win_sec: +winEl.value||null,
-    vbat: Number.isFinite(vbatNum)? vbatNum : null,
-    csv_path: fname,
+  const bandDbNum = parseFloat(bandpowEl.textContent);
+  const ins = await supa.from('sessions').insert({
+    patient_id: pat.id, exercise: exercise||null, fs: fs||null, win_sec:+winEl.value||null,
+    vbat: Number.isFinite(vbatNum)? vbatNum : null, csv_path: fname,
     peak_hz: Number.isFinite(peakHzNum)? peakHzNum : null,
     peak_db: Number.isFinite(peakDbNum)? peakDbNum : null,
+    band_db: Number.isFinite(bandDbNum)? bandDbNum : null,
     notes: notes||null
   });
-  if(dbErr) throw dbErr;
-
-  const { data:pub } = supa.storage.from(BUCKET).getPublicUrl(fname);
-  return pub?.publicUrl || null;
+  if(ins.error) throw ins.error;
+  const sig = await supa.storage.from(BUCKET).createSignedUrl(fname, 60*60);
+  return sig.data?.signedUrl || null;
 }
-
 async function loadSessions(code){
-  const c = (code||'').trim();
-  if(!c){ sessTable.innerHTML=''; return; }
-  const { data:pat, error:e1 } = await supa.from('patients').select('id').eq('code', c).maybeSingle();
-  if(e1 || !pat){ sessTable.innerHTML=''; return; }
-  const { data, error:e2 } = await supa.from('sessions')
-    .select('ts,exercise,csv_path,peak_hz,peak_db,vbat')
-    .eq('patient_id', pat.id).order('ts',{ascending:false}).limit(50);
-  if(e2){ sessTable.innerHTML=`<tr><td colspan="6" class="bad">${e2.message}</td></tr>`; return; }
+  const c=(code||'').trim(); if(!c){ sessTable.innerHTML=''; return; }
+  const { data:pat } = await supa.from('patients').select('id').eq('code',c).maybeSingle();
+  if(!pat){ sessTable.innerHTML=''; return; }
+  let q = supa.from('sessions').select('ts,exercise,csv_path,peak_hz,peak_db,vbat,band_db').eq('patient_id', pat.id).order('ts',{ascending:false}).limit(200);
+  if(fFrom.value) q = q.gte('ts', fFrom.value);
+  if(fTo.value)   q = q.lte('ts', fTo.value+'T23:59:59');
+  const { data, error } = await q;
+  if(error){ sessTable.innerHTML=`<tr><td colspan="6" class="bad">${error.message}</td></tr>`; return; }
   sessTable.innerHTML = (data||[]).map(r=>{
     const dt = new Date(r.ts).toLocaleString();
-    const ph = (r.peak_hz??'–'); const pd = (r.peak_db??'–'); const vb=(r.vbat??'–');
     const link = supa.storage.from(BUCKET).getPublicUrl(r.csv_path).data.publicUrl;
-    return `<tr><td>${dt}</td><td>${r.exercise||''}</td><td>${ph}</td><td>${pd}</td><td>${vb}</td><td><a href="${link}" target="_blank">CSV</a></td></tr>`;
+    return `<tr><td>${dt}</td><td>${r.exercise||''}</td><td>${r.peak_hz??'–'}</td><td>${r.peak_db??'–'}</td><td>${r.vbat??'–'}</td><td><a href="${link}" target="_blank">CSV</a></td></tr>`;
   }).join('') || '<tr><td colspan="6">brak</td></tr>';
 }
+async function zipSessions(code){
+  const c=(code||'').trim(); if(!c) return;
+  const { data:pat } = await supa.from('patients').select('id').eq('code',c).maybeSingle();
+  if(!pat) return;
+  const { data } = await supa.from('sessions').select('csv_path,ts').eq('patient_id',pat.id).order('ts',{ascending:false}).limit(200);
+  const zip = new JSZip();
+  for(const r of (data||[])){
+    const url = supa.storage.from(BUCKET).getPublicUrl(r.csv_path).data.publicUrl;
+    const resp = await fetch(url); const blob = await resp.blob();
+    const name = r.csv_path.split('/').pop();
+    zip.file(name, blob);
+  }
+  const out = await zip.generateAsync({type:'blob'});
+  saveAs(out, `p_${c}_sessions.zip`);
+}
+
+/* ======== PDF Raport ======== */
+async function exportPDF(){
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({unit:'pt', format:'a4'});
+  pdf.setFontSize(16); pdf.text('Raport sesji – Parkinson Monitor', 40, 40);
+  pdf.setFontSize(11);
+  pdf.text(`Pacjent: ${patientInput.value||'-'}`, 40, 60);
+  pdf.text(`Ćwiczenie: ${exerciseSelect.value||'-'}`, 40, 75);
+  pdf.text(`Peak: ${peakEl.textContent} Hz  |  ${pwrEl.textContent} dB  |  Moc 3–8 Hz: ${bandpowEl.textContent} dB`, 40, 90);
+  pdf.text(`Vbat: ${vbEl.textContent||'-'}  |  fs: ${fs.toFixed(2)} Hz  |  Okno PSD: ${winEl.value}s`, 40, 105);
+
+  // obraz wykresów
+  const c1 = document.getElementById('chartTime'); const c2 = document.getElementById('chartPsd');
+  const img1 = c1.toDataURL('image/png', 1.0);
+  const img2 = c2.toDataURL('image/png', 1.0);
+  pdf.addImage(img1, 'PNG', 40, 130, 515, 180);
+  pdf.addImage(img2, 'PNG', 40, 330, 515, 180);
+
+  if(patientNote.value){ pdf.text('Notatka:', 40, 530); pdf.setFontSize(10); const lines = pdf.splitTextToSize(patientNote.value, 515); pdf.text(lines, 40, 545); }
+  pdf.save(`raport_${(patientInput.value||'patient')}.pdf`);
+}
+
+/* ======== Presety i zdarzenia ======== */
+function startProtocol(){
+  // przykład: ustaw fs w urządzeniu i start streamu
+  sendRaw('t<1>\n'); // Twój protokół
+  sendRaw('s<1>\n');
+  addMarker('protocol_start:'+exerciseSelect.value);
+  if(!logging && autoLogEl.checked) startLog();
+}
+function stopProtocol(){
+  sendRaw('s<0>\n');
+  addMarker('protocol_stop');
+  if(logging && autoLogEl.checked) stopLog();
+}
+
+/* ======== QA sygnał syntetyczny 5 Hz ======== */
+let qaTimer=null;
+function startQA(){
+  if(qaTimer) return;
+  const f=5, A=1000; let n=0;
+  qaTimer = setInterval(()=>{ const y = A*Math.sin(2*Math.PI*f*(n/fs)); n++; pushSample(y); }, Math.max(1, 1000/fs));
+  addMarker('QA_5Hz_start');
+}
+function stopQA(){ if(qaTimer){ clearInterval(qaTimer); qaTimer=null; addMarker('QA_5Hz_stop'); }}
 
 /* ======== UI events ======== */
 btnSerial.onclick = connectSerial;
 btnDisconnect.onclick = disconnectSerial;
-btnClear.onclick=()=>{ timeChart.data.datasets[0].data.length=0; timeChart.update('none'); psdChart.data.datasets[0].data.length=0; psdChart.update('none'); termEl.textContent=''; rowsEl.textContent='0'; tlogEl.textContent='0.0 s'; resetProcessing(); };
+btnClear.onclick=()=>{ timeChart.data.datasets.forEach(d=>d.data.length=0); timeChart.update('none'); psdChart.data.datasets[0].data.length=0; psdChart.update('none'); termEl.textContent=''; rowsEl.textContent='0'; tlogEl.textContent='0.0 s'; resetProcessing(); };
 btnSend.onclick = ()=>{ sendRaw(cmdEl.value);      cmdEl.value=''; };
 btnSendLn.onclick= ()=>{ sendRaw(cmdEl.value+'\n'); cmdEl.value=''; };
-cmdEl.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); sendRaw(cmdEl.value+'\n'); cmdEl.value=''; } });
-btnStart.onclick=()=>{ sendRaw('t<1>\n'); sendRaw('s<1>\n'); };
-btnStartLog.onclick=()=>{ startLog(); };
-btnStopLog.onclick =()=>{ stopLog();  };
-btnDownload.onclick=()=>{ const blob=new Blob([csv.join('\n')+'\n'],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='parkinson_log.csv'; a.click(); URL.revokeObjectURL(a.href); };
-btnDownloadLocal.onclick=()=>{ const blob=new Blob([csv.join('\n')+'\n'],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${(patientInput.value||'patient')}_${(exerciseSelect.value||'session')}.csv`; a.click(); URL.revokeObjectURL(a.href); };
-
+btnStartLog.onclick=()=> startLog();
+btnStopLog.onclick =()=> stopLog();
+btnDownload.onclick=()=>{ const blob=new Blob([csv.join('\n')+'\n'],{type:'text/csv'}); saveAs(blob, `${(patientInput.value||'patient')}_${(exerciseSelect.value||'session')}.csv`); };
+btnDownloadLocal.onclick=()=>{ const blob=new Blob([csv.join('\n')+'\n'],{type:'text/csv'}); saveAs(blob, `${(patientInput.value||'patient')}_${(exerciseSelect.value||'session')}.csv`); };
 btnUpload.onclick = async ()=>{
-  const code = patientInput.value?.trim();
-  if(!code){ alert('Podaj kod pacjenta'); return; }
-  const csvText = csv.join('\n')+'\n';
-  if(csvText.length < 12){ alert('Brak danych do wysłania'); return; }
-  try{
-    const url = await uploadCsv(code, exerciseSelect.value, notesInput.value?.trim(), csvText);
-    alert(url ? ('Wysłano do chmury:\n'+url) : 'Wysłano do chmury.');
-    loadSessions(code);
-  }catch(e){ alert('Upload błąd: '+(e?.message||e)); }
+  const code = patientInput.value?.trim(); if(!code){ alert('Podaj kod pacjenta'); return; }
+  const csvText = csv.join('\n')+'\n'; if(csvText.length < 12){ alert('Brak danych do wysłania'); return; }
+  try{ const url = await uploadCsv(code, exerciseSelect.value, patientNote.value?.trim(), csvText); alert(url ? ('Wysłano do chmury:\n'+url) : 'Wysłano.'); loadSessions(code); }
+  catch(e){ alert('Upload błąd: '+(e?.message||e)); }
 };
-
+btnPatSave.onclick = async ()=>{ try{ await getOrCreatePatient(patientInput.value); alert('Zapisano.'); }catch(e){ alert(e.message); } };
+btnPatDelete.onclick = async ()=>{ if(confirm('Usunąć pacjenta i jego rekordy?')){ try{ await deletePatient(patientInput.value); alert('Usunięto.'); sessTable.innerHTML=''; }catch(e){ alert(e.message); } } };
 btnLoadSess.onclick = ()=> loadSessions(patientInput.value);
+btnZip.onclick = ()=> zipSessions(patientInput.value);
+btnPdf.onclick = ()=> exportPDF();
+btnPresetStart.onclick = startProtocol;
+btnPresetStop.onclick = stopProtocol;
+btnMarker.onclick = ()=> addMarker(prompt('Opis znacznika:')||'marker');
+btnQA.onclick = ()=> qaTimer? stopQA(): startQA();
 
 /* ======== init ======== */
-setStatus('Rozłączony','var(--warn)'); resetProcessing();
+setStatus('Rozłączony','var(--warn)'); resetProcessing(); designBandpass(fs);
 </script>
 </body>
 </html>
